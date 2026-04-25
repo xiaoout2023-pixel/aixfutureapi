@@ -5,7 +5,8 @@ from typing import Optional, List
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 from db.turso import TursoDB
 from db.repository import ModelRepository
