@@ -25,14 +25,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-db = None
-repo = None
+# Lazy initialization for Serverless environment
+_db = None
+_repo = None
 
-@app.on_event("startup")
-async def startup():
-    global db, repo
-    db = TursoDB()
-    repo = ModelRepository(db)
+def get_repo() -> ModelRepository:
+    global _db, _repo
+    if _repo is None:
+        _db = TursoDB()
+        _repo = ModelRepository(_db)
+    return _repo
 
 class CostCalcRequest(BaseModel):
     model_id: str
@@ -71,12 +73,12 @@ async def list_models(
     if tags:
         filters["tags"] = [t.strip() for t in tags.split(",")]
     
-    models = await repo.search_models(filters)
+    models = await get_repo().search_models(filters)
     return {"code": 200, "message": "success", "data": models, "total": len(models)}
 
 @app.get("/api/models/{model_id}")
 async def get_model(model_id: str):
-    model = await repo.get_model(model_id)
+    model = await get_repo().get_model(model_id)
     if not model:
         raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
     return {"code": 200, "message": "success", "data": model}
@@ -89,7 +91,7 @@ async def compare_models(
     
     result = []
     for model_id in model_ids:
-        model = await repo.get_model(model_id)
+        model = await get_repo().get_model(model_id)
         if model:
             result.append(model)
     
@@ -114,12 +116,12 @@ async def compare_models(
 
 @app.get("/api/providers")
 async def list_providers():
-    providers = await repo.get_providers()
+    providers = await get_repo().get_providers()
     return {"code": 200, "message": "success", "data": providers}
 
 @app.post("/api/cost/calculate")
 async def calculate_cost(request: CostCalcRequest):
-    model = await repo.get_model(request.model_id)
+    model = await get_repo().get_model(request.model_id)
     if not model:
         raise HTTPException(status_code=404, detail=f"Model {request.model_id} not found")
     
@@ -154,7 +156,7 @@ async def calculate_cost(request: CostCalcRequest):
 async def compare_cost(request: CostCompareRequest):
     results = []
     for model_id in request.models:
-        model = await repo.get_model(model_id)
+        model = await get_repo().get_model(model_id)
         if not model:
             continue
         
@@ -208,7 +210,7 @@ async def search_models(
     if tags:
         filters["tags"] = [t.strip() for t in tags.split(",")]
     
-    models = await repo.search_models(filters)
+    models = await get_repo().search_models(filters)
     
     if code_generation is not None:
         models = [m for m in models if m.get("capabilities", {}).get("code_generation") == code_generation]
@@ -225,8 +227,8 @@ async def search_models(
 
 @app.get("/api/status")
 async def get_status():
-    models = await repo.get_all_models()
-    providers = await repo.get_providers()
+    models = await get_repo().get_all_models()
+    providers = await get_repo().get_providers()
     
     return {
         "code": 200,
