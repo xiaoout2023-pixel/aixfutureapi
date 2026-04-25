@@ -51,11 +51,15 @@ class CostCalcRequest(BaseModel):
     model_id: str
     input_tokens: int = 1000
     output_tokens: int = 1000
+    quantity: int = 1
+    currency: Optional[str] = "USD"
 
 class CostCompareRequest(BaseModel):
     models: List[str]
     input_tokens: int = 1000
     output_tokens: int = 1000
+    quantity: int = 1
+    currency: Optional[str] = "USD"
 
 @app.get("/api/models")
 async def list_models(
@@ -67,8 +71,12 @@ async def list_models(
     max_output_price: Optional[float] = Query(None),
     has_vision: Optional[bool] = Query(None),
     has_tool_calling: Optional[bool] = Query(None),
+    type: Optional[str] = Query(None, description="模型类型：llm(大语言模型)/multimodal(多模态)/vision(视觉)/audio(音频)/code(代码)"),
+    access: Optional[str] = Query(None, description="开源类型：open(开源)/closed(闭源)"),
     sort_by: Optional[str] = Query("overall_score", pattern="^(overall_score|cost_efficiency_score|input_price|output_price|context_length)$"),
-    sort_order: Optional[str] = Query("desc", pattern="^(asc|desc)$")
+    sort_order: Optional[str] = Query("desc", pattern="^(asc|desc)$"),
+    page: Optional[int] = Query(1, ge=1),
+    page_size: Optional[int] = Query(20, ge=1, le=100)
 ):
     filters = {
         "provider": provider,
@@ -85,7 +93,43 @@ async def list_models(
         filters["tags"] = [t.strip() for t in tags.split(",")]
     
     models = await get_repo().search_models(filters)
-    return {"code": 200, "message": "success", "data": models, "total": len(models)}
+    
+    # Apply type filter
+    if type:
+        type_map = {
+            "llm": lambda m: m.get("capabilities", {}).get("text_generation") and not m.get("capabilities", {}).get("multimodal"),
+            "multimodal": lambda m: m.get("capabilities", {}).get("multimodal"),
+            "vision": lambda m: m.get("capabilities", {}).get("vision") and not m.get("capabilities", {}).get("multimodal"),
+            "audio": lambda m: m.get("capabilities", {}).get("audio"),
+            "code": lambda m: m.get("capabilities", {}).get("code_generation")
+        }
+        filter_fn = type_map.get(type)
+        if filter_fn:
+            models = [m for m in models if filter_fn(m)]
+    
+    # Apply access filter
+    if access:
+        open_source_providers = {"openai", "anthropic", "google", "mistral"}
+        if access == "open":
+            models = [m for m in models if m.get("provider") not in open_source_providers]
+        elif access == "closed":
+            models = [m for m in models if m.get("provider") in open_source_providers]
+    
+    # Pagination
+    total = len(models)
+    start = (page - 1) * page_size
+    end = start + page_size
+    models = models[start:end]
+    
+    return {
+        "code": 200,
+        "message": "success",
+        "data": models,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
 
 @app.get("/api/models/{model_id}")
 async def get_model(model_id: str):
@@ -140,9 +184,21 @@ async def calculate_cost(request: CostCalcRequest):
     input_price = pricing.get("input_price_per_1m_tokens", 0)
     output_price = pricing.get("output_price_per_1m_tokens", 0)
     
-    input_cost = (request.input_tokens / 1000000) * input_price
-    output_cost = (request.output_tokens / 1000000) * output_price
+    input_cost = (request.input_tokens / 1000000) * input_price * request.quantity
+    output_cost = (request.output_tokens / 1000000) * output_price * request.quantity
     total_cost = input_cost + output_cost
+    
+    # Currency conversion
+    currency = request.currency.upper()
+    exchange_rates = {
+        "USD": 1.0,
+        "CNY": 7.25,
+        "EUR": 0.92,
+        "JPY": 149.5,
+        "GBP": 0.79
+    }
+    rate = exchange_rates.get(currency, 1.0)
+    currency_symbol = {"USD": "$", "CNY": "¥", "EUR": "€", "JPY": "¥", "GBP": "£"}.get(currency, currency)
     
     return {
         "code": 200,
@@ -153,12 +209,15 @@ async def calculate_cost(request: CostCalcRequest):
             "provider": model.get("provider"),
             "input_tokens": request.input_tokens,
             "output_tokens": request.output_tokens,
+            "quantity": request.quantity,
             "pricing": pricing,
             "cost_breakdown": {
-                "input_cost": round(input_cost, 6),
-                "output_cost": round(output_cost, 6),
-                "total_cost": round(total_cost, 6),
-                "currency": pricing.get("currency", "USD")
+                "input_cost": round(input_cost * rate, 6),
+                "output_cost": round(output_cost * rate, 6),
+                "total_cost": round(total_cost * rate, 6),
+                "currency": currency,
+                "currency_symbol": currency_symbol,
+                "exchange_rate": rate if currency != "USD" else None
             }
         }
     }
@@ -175,17 +234,28 @@ async def compare_cost(request: CostCompareRequest):
         input_price = pricing.get("input_price_per_1m_tokens", 0)
         output_price = pricing.get("output_price_per_1m_tokens", 0)
         
-        input_cost = (request.input_tokens / 1000000) * input_price
-        output_cost = (request.output_tokens / 1000000) * output_price
+        input_cost = (request.input_tokens / 1000000) * input_price * request.quantity
+        output_cost = (request.output_tokens / 1000000) * output_price * request.quantity
+        
+        currency = request.currency.upper()
+        exchange_rates = {
+            "USD": 1.0,
+            "CNY": 7.25,
+            "EUR": 0.92,
+            "JPY": 149.5,
+            "GBP": 0.79
+        }
+        rate = exchange_rates.get(currency, 1.0)
         
         results.append({
             "model_id": model_id,
             "model_name": model.get("model_name"),
             "provider": model.get("provider"),
-            "input_cost": round(input_cost, 6),
-            "output_cost": round(output_cost, 6),
-            "total_cost": round(input_cost + output_cost, 6),
-            "pricing": pricing
+            "input_cost": round(input_cost * rate, 6),
+            "output_cost": round(output_cost * rate, 6),
+            "total_cost": round((input_cost + output_cost) * rate, 6),
+            "pricing": pricing,
+            "quantity": request.quantity
         })
     
     results.sort(key=lambda x: x["total_cost"])
@@ -199,8 +269,42 @@ async def compare_cost(request: CostCompareRequest):
         "meta": {
             "input_tokens": request.input_tokens,
             "output_tokens": request.output_tokens,
+            "quantity": request.quantity,
+            "currency": currency,
             "cheapest_model": cheapest
         }
+    }
+
+@app.get("/api/exchange-rate")
+async def get_exchange_rate():
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "base": "USD",
+            "rates": {
+                "CNY": 7.25,
+                "EUR": 0.92,
+                "JPY": 149.5,
+                "GBP": 0.79,
+                "USD": 1.0
+            },
+            "updated_at": "2026-04-26"
+        }
+    }
+
+@app.get("/api/model-types")
+async def get_model_types():
+    return {
+        "code": 200,
+        "message": "success",
+        "data": [
+            {"key": "llm", "name": "大语言模型", "description": "文本生成、对话等"},
+            {"key": "multimodal", "name": "多模态", "description": "支持图文音视频等多种模态"},
+            {"key": "vision", "name": "视觉", "description": "图像理解、生成"},
+            {"key": "audio", "name": "音频", "description": "语音识别、合成"},
+            {"key": "code", "name": "代码", "description": "代码生成、补全"}
+        ]
     }
 
 @app.get("/api/search")
@@ -255,7 +359,7 @@ async def get_status():
 async def root():
     return {
         "name": "AI Model Pricing API",
-        "version": "0.2.0",
+        "version": "0.3.0",
         "docs": "/docs",
         "endpoints": {
             "models": "/api/models",
@@ -265,6 +369,8 @@ async def root():
             "search": "/api/search?tags=vision,coding",
             "cost_calculate": "POST /api/cost/calculate",
             "cost_compare": "POST /api/cost/compare",
+            "exchange_rate": "/api/exchange-rate",
+            "model_types": "/api/model-types",
             "status": "/api/status"
         }
     }
