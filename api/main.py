@@ -4,12 +4,23 @@ from pydantic import BaseModel
 from typing import Optional, List
 import os
 import sys
+import importlib.util
 
-# Add project root to path so we can import db/
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# Resolve project root for Vercel Serverless environment
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_project_root = os.path.abspath(os.path.join(_current_dir, '..'))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-from db.turso import TursoDB
-from db.repository import ModelRepository
+try:
+    from db.turso import TursoDB
+    from db.repository import ModelRepository
+except ImportError as e:
+    print(f"Import error: {e}", file=sys.stderr)
+    print(f"sys.path: {sys.path}", file=sys.stderr)
+    print(f"Current dir: {_current_dir}", file=sys.stderr)
+    print(f"Project root: {_project_root}", file=sys.stderr)
+    raise
 
 app = FastAPI(
     title="AI Model Pricing API",
