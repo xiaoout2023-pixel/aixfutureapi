@@ -122,27 +122,27 @@ class ModelRepository:
             params.append(str(filters["min_output_price"]))
         
         if filters.get("has_vision") is not None:
-            conditions.append("JSON_EXTRACT(capabilities, '$.vision') = ?")
+            conditions.append("CAST(JSON_EXTRACT(capabilities, '$.vision') AS TEXT) = ?")
             params.append("true" if filters["has_vision"] else "false")
         
         if filters.get("has_tool_calling") is not None:
-            conditions.append("JSON_EXTRACT(capabilities, '$.tool_calling') = ?")
+            conditions.append("CAST(JSON_EXTRACT(capabilities, '$.tool_calling') AS TEXT) = ?")
             params.append("true" if filters["has_tool_calling"] else "false")
 
         if filters.get("text_generation") is not None:
-            conditions.append("JSON_EXTRACT(capabilities, '$.text_generation') = ?")
+            conditions.append("CAST(JSON_EXTRACT(capabilities, '$.text_generation') AS TEXT) = ?")
             params.append("true" if filters["text_generation"] else "false")
 
         if filters.get("code_generation") is not None:
-            conditions.append("JSON_EXTRACT(capabilities, '$.code_generation') = ?")
+            conditions.append("CAST(JSON_EXTRACT(capabilities, '$.code_generation') AS TEXT) = ?")
             params.append("true" if filters["code_generation"] else "false")
 
         if filters.get("audio") is not None:
-            conditions.append("JSON_EXTRACT(capabilities, '$.audio') = ?")
+            conditions.append("CAST(JSON_EXTRACT(capabilities, '$.audio') AS TEXT) = ?")
             params.append("true" if filters["audio"] else "false")
 
         if filters.get("multimodal") is not None:
-            conditions.append("JSON_EXTRACT(capabilities, '$.multimodal') = ?")
+            conditions.append("CAST(JSON_EXTRACT(capabilities, '$.multimodal') AS TEXT) = ?")
             params.append("true" if filters["multimodal"] else "false")
 
         if filters.get("reasoning_level"):
