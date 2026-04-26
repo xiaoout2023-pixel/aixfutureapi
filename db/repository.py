@@ -123,27 +123,27 @@ class ModelRepository:
         
         if filters.get("has_vision") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.vision') = ?")
-            params.append("1" if filters["has_vision"] else "0")
+            params.append("true" if filters["has_vision"] else "false")
         
         if filters.get("has_tool_calling") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.tool_calling') = ?")
-            params.append("1" if filters["has_tool_calling"] else "0")
+            params.append("true" if filters["has_tool_calling"] else "false")
 
         if filters.get("text_generation") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.text_generation') = ?")
-            params.append("1" if filters["text_generation"] else "0")
+            params.append("true" if filters["text_generation"] else "false")
 
         if filters.get("code_generation") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.code_generation') = ?")
-            params.append("1" if filters["code_generation"] else "0")
+            params.append("true" if filters["code_generation"] else "false")
 
         if filters.get("audio") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.audio') = ?")
-            params.append("1" if filters["audio"] else "0")
+            params.append("true" if filters["audio"] else "false")
 
         if filters.get("multimodal") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.multimodal') = ?")
-            params.append("1" if filters["multimodal"] else "0")
+            params.append("true" if filters["multimodal"] else "false")
 
         if filters.get("reasoning_level"):
             conditions.append("JSON_EXTRACT(capabilities, '$.reasoning_level') = ?")
