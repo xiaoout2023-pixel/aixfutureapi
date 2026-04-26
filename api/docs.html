@@ -47,6 +47,7 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 <a href="#compare"><span class="method get">GET</span> /api/compare</a>
 <a href="#providers"><span class="method get">GET</span> /api/providers</a>
 <a href="#search"><span class="method get">GET</span> /api/search</a>
+<a href="#search-suggest"><span class="method get">GET</span> /api/search/suggest</a>
 <a href="#status"><span class="method get">GET</span> /api/status</a>
 <a href="#exchange-rate"><span class="method get">GET</span> /api/exchange-rate</a>
 <a href="#model-types"><span class="method get">GET</span> /api/model-types</a>
@@ -181,10 +182,13 @@ source: 来源信息</pre>
 
 <div class="endpoint" id="search">
 <h2><span class="method get">GET</span> /api/search</h2>
-<p class="desc">搜索模型。</p>
+<p class="desc">搜索模型。支持模糊搜索、任务类型、价格区间、多维度筛选。</p>
 <h3>参数</h3>
 <table>
 <tr><th>参数</th><th>类型</th><th>说明</th></tr>
+<tr><td>q</td><td>string</td><td>搜索关键词：模型名、厂商名、标签</td></tr>
+<tr><td>task</td><td>string</td><td>任务类型：text_classification/code_generation/translation/reasoning/summarization/multimodal</td></tr>
+<tr><td>provider</td><td>string</td><td>厂商筛选，逗号分隔，如 openai,anthropic</td></tr>
 <tr><td>tags</td><td>string</td><td>标签筛选，逗号分隔</td></tr>
 <tr><td>text_generation</td><td>bool</td><td>文本生成，true/false</td></tr>
 <tr><td>code_generation</td><td>bool</td><td>代码生成，true/false</td></tr>
@@ -193,13 +197,29 @@ source: 来源信息</pre>
 <tr><td>multimodal</td><td>bool</td><td>多模态，true/false</td></tr>
 <tr><td>tool_calling</td><td>bool</td><td>工具调用，true/false</td></tr>
 <tr><td>reasoning_level</td><td>string</td><td>推理等级，low/medium/high</td></tr>
+<tr><td>min_input_price</td><td>number</td><td>输入价格下限</td></tr>
+<tr><td>max_input_price</td><td>number</td><td>输入价格上限</td></tr>
+<tr><td>min_output_price</td><td>number</td><td>输出价格下限</td></tr>
+<tr><td>max_output_price</td><td>number</td><td>输出价格上限</td></tr>
+<tr><td>sort_by</td><td>string</td><td>排序字段：overall_score/cost_efficiency_score/input_price/output_price/context_length（默认 cost_efficiency_score）</td></tr>
+<tr><td>sort_order</td><td>string</td><td>排序方向：asc/desc（默认 desc）</td></tr>
+<tr><td>page</td><td>number</td><td>页码，默认 1</td></tr>
+<tr><td>page_size</td><td>number</td><td>每页数量，默认 20</td></tr>
 </table>
 <h3>响应</h3>
 <pre>{
   "code": 200,
   "message": "success",
   "data": [模型对象数组],
-  "total": 数量
+  "total": 数量,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1,
+  "suggestions": [
+    // 搜索无结果时返回建议
+  ],
+  "empty_state": true
+  // 空状态时返回 true
 }</pre>
 </div>
 
@@ -342,6 +362,35 @@ source: 来源信息</pre>
     "quantity": 10,
     "currency": "CNY",
     "cheapest_model": "gpt-4o"
+  }
+}</pre>
+</div>
+<div class="endpoint" id="search-suggest">
+<h2><span class="method get">GET</span> /api/search/suggest</h2>
+<p class="desc">搜索联想和推荐。用于输入框实时联想、空状态推荐。</p>
+<h3>查询参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+<tr><td>q</td><td>string</td><td>是</td><td>搜索关键词</td></tr>
+</table>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "suggestions": [
+      {
+        "model_id": "gpt-4o",
+        "model_name": "GPT-4o",
+        "provider": "openai",
+        "pricing": {"input_price_per_1m_tokens": 2.5, "output_price_per_1m_tokens": 10},
+        "tags": ["vision", "coding", "multimodal"]
+      }
+    ],
+    "popular_tags": [
+      {"tag": "coding", "count": 8},
+      {"tag": "vision", "count": 5}
+    ]
   }
 }</pre>
 </div>
