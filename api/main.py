@@ -329,12 +329,23 @@ async def search_models(
     page_size: Optional[int] = Query(20, ge=1, le=100)
 ):
     task_to_tags = {
-        "text_classification": ["reasoning", "text_generation"],
-        "code_generation": ["coding", "code_generation"],
-        "translation": ["text_generation", "fast"],
-        "reasoning": ["reasoning", "coding"],
-        "summarization": ["text_generation", "fast"],
-        "multimodal": ["multimodal", "vision"]
+        "text_classification": ["reasoning"],
+        "code_generation": ["coding"],
+        "translation": ["fast"],
+        "reasoning": ["reasoning"],
+        "summarization": ["fast"],
+        "multimodal": ["multimodal"]
+    }
+    task_to_capability = {
+        "text_classification": "text_generation",
+        "code_generation": "code_generation",
+        "translation": "text_generation",
+        "reasoning": None,
+        "summarization": "text_generation",
+        "multimodal": "multimodal"
+    }
+    task_to_reasoning = {
+        "reasoning": "high"
     }
 
     filters = {
@@ -358,10 +369,19 @@ async def search_models(
 
     if task:
         filter_tags = task_to_tags.get(task, [])
+        cap = task_to_capability.get(task)
+        reason_level = task_to_reasoning.get(task)
         if filter_tags:
             filters["tags"] = filter_tags
-        if not q:
-            filters["q"] = task
+        if cap and code_generation is None and text_generation is None:
+            if cap == "code_generation":
+                filters["code_generation"] = True
+            elif cap == "text_generation":
+                filters["text_generation"] = True
+            elif cap == "multimodal":
+                filters["multimodal"] = True
+        if reason_level and not reasoning_level:
+            filters["reasoning_level"] = reason_level
 
     if tags:
         existing_tags = filters.get("tags", [])
