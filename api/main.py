@@ -308,6 +308,9 @@ async def get_model_types():
 
 @app.get("/api/search")
 async def search_models(
+    q: Optional[str] = Query(None, description="搜索关键词：模型名、厂商名、标签"),
+    task: Optional[str] = Query(None, description="任务类型：text_classification/code_generation/translation/reasoning/summarization/multimodal"),
+    provider: Optional[str] = Query(None, description="厂商筛选，逗号分隔，如 openai,anthropic"),
     tags: Optional[str] = Query(None, description="标签，逗号分隔"),
     text_generation: Optional[bool] = Query(None),
     code_generation: Optional[bool] = Query(None),
@@ -315,29 +318,117 @@ async def search_models(
     audio: Optional[bool] = Query(None),
     multimodal: Optional[bool] = Query(None),
     tool_calling: Optional[bool] = Query(None),
-    reasoning_level: Optional[str] = Query(None, pattern="^(low|medium|high)$")
+    reasoning_level: Optional[str] = Query(None, pattern="^(low|medium|high)$"),
+    min_input_price: Optional[float] = Query(None, description="输入价格下限"),
+    max_input_price: Optional[float] = Query(None, description="输入价格上限"),
+    min_output_price: Optional[float] = Query(None, description="输出价格下限"),
+    max_output_price: Optional[float] = Query(None, description="输出价格上限"),
+    sort_by: Optional[str] = Query("cost_efficiency_score", pattern="^(overall_score|cost_efficiency_score|input_price|output_price|context_length)$"),
+    sort_order: Optional[str] = Query("desc", pattern="^(asc|desc)$"),
+    page: Optional[int] = Query(1, ge=1),
+    page_size: Optional[int] = Query(20, ge=1, le=100)
 ):
+    task_to_tags = {
+        "text_classification": ["reasoning", "text_generation"],
+        "code_generation": ["coding", "code_generation"],
+        "translation": ["text_generation", "fast"],
+        "reasoning": ["reasoning", "coding"],
+        "summarization": ["text_generation", "fast"],
+        "multimodal": ["multimodal", "vision"]
+    }
+
     filters = {
         "has_vision": vision,
-        "has_tool_calling": tool_calling
+        "has_tool_calling": tool_calling,
+        "text_generation": text_generation,
+        "code_generation": code_generation,
+        "audio": audio,
+        "multimodal": multimodal,
+        "reasoning_level": reasoning_level,
+        "min_input_price": min_input_price,
+        "max_input_price": max_input_price,
+        "min_output_price": min_output_price,
+        "max_output_price": max_output_price,
+        "sort_by": sort_by,
+        "sort_order": sort_order
     }
+
+    if q:
+        filters["q"] = q
+
+    if task:
+        filter_tags = task_to_tags.get(task, [])
+        if filter_tags:
+            filters["tags"] = filter_tags
+        if not q:
+            filters["q"] = task
+
     if tags:
-        filters["tags"] = [t.strip() for t in tags.split(",")]
-    
+        existing_tags = filters.get("tags", [])
+        new_tags = [t.strip() for t in tags.split(",")]
+        filters["tags"] = existing_tags + new_tags
+
     models = await get_repo().search_models(filters)
+
+    if provider:
+        provider_list = [p.strip().lower() for p in provider.split(",")]
+        models = [m for m in models if m.get("provider", "").lower() in provider_list]
+
+    if not models and not q and not task:
+        recommendations = await get_repo().get_recommendations()
+        return {
+            "code": 200,
+            "message": "success",
+            "data": [],
+            "total": 0,
+            "suggestions": recommendations,
+            "empty_state": True
+        }
+
+    total = len(models)
+    start = (page - 1) * page_size
+    end = start + page_size
+    models = models[start:end]
+
+    result = {
+        "code": 200,
+        "message": "success",
+        "data": models,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": (total + page_size - 1) // page_size
+    }
+
+    if not models and (q or task):
+        suggestions = await get_repo().get_search_suggestions(q or task)
+        result["suggestions"] = suggestions["suggestions"]
+
+    return result
+
+@app.get("/api/search/suggest")
+async def search_suggest(q: str = Query(..., description="搜索关键词")):
+    if len(q) < 1:
+        return {"code": 200, "message": "success", "data": {"suggestions": [], "popular_tags": []}}
     
-    if code_generation is not None:
-        models = [m for m in models if m.get("capabilities", {}).get("code_generation") == code_generation]
-    if text_generation is not None:
-        models = [m for m in models if m.get("capabilities", {}).get("text_generation") == text_generation]
-    if audio is not None:
-        models = [m for m in models if m.get("capabilities", {}).get("audio") == audio]
-    if multimodal is not None:
-        models = [m for m in models if m.get("capabilities", {}).get("multimodal") == multimodal]
-    if reasoning_level:
-        models = [m for m in models if m.get("capabilities", {}).get("reasoning_level") == reasoning_level]
+    suggestions = await get_repo().get_search_suggestions(q)
     
-    return {"code": 200, "message": "success", "data": models, "total": len(models)}
+    all_models = await get_repo().get_all_models()
+    tag_counts = {}
+    for m in all_models:
+        for tag in m.get("tags", []):
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    
+    popular_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:8]
+    
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "suggestions": suggestions["suggestions"],
+            "popular_tags": [{"tag": t, "count": c} for t, c in popular_tags]
+        }
+    }
 
 @app.get("/api/status")
 async def get_status():

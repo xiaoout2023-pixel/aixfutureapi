@@ -112,6 +112,14 @@ class ModelRepository:
         if filters.get("max_output_price"):
             conditions.append("JSON_EXTRACT(pricing, '$.output_price_per_1m_tokens') <= ?")
             params.append(str(filters["max_output_price"]))
+
+        if filters.get("min_input_price"):
+            conditions.append("JSON_EXTRACT(pricing, '$.input_price_per_1m_tokens') >= ?")
+            params.append(str(filters["min_input_price"]))
+
+        if filters.get("min_output_price"):
+            conditions.append("JSON_EXTRACT(pricing, '$.output_price_per_1m_tokens') >= ?")
+            params.append(str(filters["min_output_price"]))
         
         if filters.get("has_vision") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.vision') = ?")
@@ -120,6 +128,26 @@ class ModelRepository:
         if filters.get("has_tool_calling") is not None:
             conditions.append("JSON_EXTRACT(capabilities, '$.tool_calling') = ?")
             params.append("1" if filters["has_tool_calling"] else "0")
+
+        if filters.get("text_generation") is not None:
+            conditions.append("JSON_EXTRACT(capabilities, '$.text_generation') = ?")
+            params.append("1" if filters["text_generation"] else "0")
+
+        if filters.get("code_generation") is not None:
+            conditions.append("JSON_EXTRACT(capabilities, '$.code_generation') = ?")
+            params.append("1" if filters["code_generation"] else "0")
+
+        if filters.get("audio") is not None:
+            conditions.append("JSON_EXTRACT(capabilities, '$.audio') = ?")
+            params.append("1" if filters["audio"] else "0")
+
+        if filters.get("multimodal") is not None:
+            conditions.append("JSON_EXTRACT(capabilities, '$.multimodal') = ?")
+            params.append("1" if filters["multimodal"] else "0")
+
+        if filters.get("reasoning_level"):
+            conditions.append("JSON_EXTRACT(capabilities, '$.reasoning_level') = ?")
+            params.append(filters["reasoning_level"])
         
         if filters.get("tags"):
             tags = filters["tags"]
@@ -128,7 +156,12 @@ class ModelRepository:
             for tag in tags:
                 conditions.append("tags LIKE ?")
                 params.append(f"%{tag}%")
-        
+
+        if filters.get("q"):
+            q = filters["q"]
+            conditions.append("(model_id LIKE ? OR model_name LIKE ? OR provider LIKE ? OR tags LIKE ?)")
+            params.extend([f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%"])
+
         sql = f"SELECT * FROM models"
         if conditions:
             sql += " WHERE " + " AND ".join(conditions)
@@ -172,3 +205,40 @@ class ModelRepository:
                 except:
                     parsed[field] = {} if field != "tags" else []
         return parsed
+
+    async def get_recommendations(self) -> List[Dict]:
+        sql = """
+            SELECT * FROM models 
+            WHERE status = 'active'
+            ORDER BY JSON_EXTRACT(scores, '$.overall_score') DESC
+            LIMIT 6
+        """
+        rows = await self.db.query_all(sql)
+        return [self._parse_row(row) for row in rows]
+
+    async def get_search_suggestions(self, q: str) -> Dict:
+        models = await self.get_all_models()
+        q_lower = q.lower()
+        
+        model_name_matches = []
+        provider_matches = []
+        tag_matches = []
+        
+        for m in models:
+            if q_lower in m.get("model_id", "").lower() or q_lower in m.get("model_name", "").lower():
+                model_name_matches.append(m)
+            if q_lower in m.get("provider", "").lower():
+                provider_matches.append(m)
+            for tag in m.get("tags", []):
+                if q_lower in tag.lower():
+                    tag_matches.append(m)
+                    break
+        
+        seen = set()
+        result = []
+        for m in model_name_matches + provider_matches + tag_matches:
+            if m["model_id"] not in seen:
+                seen.add(m["model_id"])
+                result.append(m)
+        
+        return {"suggestions": result[:10]}
