@@ -48,6 +48,35 @@ async def init_database():
     """)
     print("Created price_history table")
     
+    print("Creating scenarios table...")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS scenarios (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    print("Created scenarios table")
+    
+    print("Creating scenario_steps table...")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS scenario_steps (
+            id TEXT PRIMARY KEY,
+            scenario_id TEXT NOT NULL,
+            step_order INTEGER NOT NULL DEFAULT 0,
+            task_type TEXT,
+            model_id TEXT,
+            input_tokens INTEGER DEFAULT 0,
+            output_tokens INTEGER DEFAULT 0,
+            daily_calls INTEGER DEFAULT 1,
+            cache_hit_rate REAL DEFAULT 0.0,
+            FOREIGN KEY(scenario_id) REFERENCES scenarios(id),
+            FOREIGN KEY(model_id) REFERENCES models(model_id)
+        )
+    """)
+    print("Created scenario_steps table")
+    
     rows = await db.query("SELECT count(*) as cnt FROM models")
     print(f"Current model count: {rows}")
     

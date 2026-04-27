@@ -485,6 +485,175 @@ async def root():
             "cost_compare": "POST /api/cost/compare",
             "exchange_rate": "/api/exchange-rate",
             "model_types": "/api/model-types",
-            "status": "/api/status"
+            "status": "/api/status",
+            "scenarios": "/api/calculator/scenarios",
+            "calculator_templates": "/api/calculator/templates"
         }
     }
+
+# ========== Calculator Pro: Scenario Cost Simulator ==========
+
+class ScenarioCreate(BaseModel):
+    name: str
+
+class ScenarioUpdate(BaseModel):
+    name: str
+
+class StepCreate(BaseModel):
+    scenario_id: str
+    task_type: Optional[str] = ""
+    model_id: Optional[str] = ""
+    input_tokens: Optional[int] = 0
+    output_tokens: Optional[int] = 0
+    daily_calls: Optional[int] = 1
+    cache_hit_rate: Optional[float] = 0.0
+
+class StepUpdate(BaseModel):
+    task_type: Optional[str] = ""
+    model_id: Optional[str] = ""
+    input_tokens: Optional[int] = 0
+    output_tokens: Optional[int] = 0
+    daily_calls: Optional[int] = 1
+    cache_hit_rate: Optional[float] = 0.0
+
+class StepReorder(BaseModel):
+    id: str
+    step_order: int
+
+@app.post("/api/calculator/scenarios")
+async def create_scenario(data: ScenarioCreate):
+    scenario = await get_repo().create_scenario(data.name)
+    return {"code": 200, "message": "success", "data": scenario}
+
+@app.get("/api/calculator/scenarios")
+async def list_scenarios():
+    scenarios = await get_repo().get_all_scenarios()
+    return {"code": 200, "message": "success", "data": scenarios, "total": len(scenarios)}
+
+@app.get("/api/calculator/scenarios/{scenario_id}")
+async def get_scenario(scenario_id: str):
+    scenario = await get_repo().get_scenario_with_costs(scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return {"code": 200, "message": "success", "data": scenario}
+
+@app.put("/api/calculator/scenarios/{scenario_id}")
+async def update_scenario(scenario_id: str, data: ScenarioUpdate):
+    scenario = await get_repo().update_scenario(scenario_id, data.name)
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    return {"code": 200, "message": "success", "data": scenario}
+
+@app.delete("/api/calculator/scenarios/{scenario_id}")
+async def delete_scenario(scenario_id: str):
+    await get_repo().delete_scenario(scenario_id)
+    return {"code": 200, "message": "success"}
+
+@app.post("/api/calculator/scenarios/{scenario_id}/steps")
+async def add_step(scenario_id: str, data: StepCreate):
+    step_data = data.dict()
+    step_data["scenario_id"] = scenario_id
+    existing_steps = await get_repo().get_scenario_steps(scenario_id)
+    step_data["step_order"] = len(existing_steps)
+    step = await get_repo().add_step(step_data)
+    return {"code": 200, "message": "success", "data": step}
+
+@app.get("/api/calculator/scenarios/{scenario_id}/steps")
+async def list_steps(scenario_id: str):
+    steps = await get_repo().get_scenario_steps(scenario_id)
+    return {"code": 200, "message": "success", "data": steps, "total": len(steps)}
+
+@app.put("/api/calculator/steps/{step_id}")
+async def update_step(step_id: str, data: StepUpdate):
+    step = await get_repo().update_step(step_id, data.dict())
+    if not step:
+        raise HTTPException(status_code=404, detail="Step not found")
+    return {"code": 200, "message": "success", "data": step}
+
+@app.delete("/api/calculator/steps/{step_id}")
+async def delete_step(step_id: str):
+    await get_repo().delete_step(step_id)
+    return {"code": 200, "message": "success"}
+
+@app.post("/api/calculator/scenarios/{scenario_id}/reorder")
+async def reorder_steps(scenario_id: str, data: List[StepReorder]):
+    steps = await get_repo().reorder_steps(scenario_id, [s.dict() for s in data])
+    return {"code": 200, "message": "success", "data": steps}
+
+@app.post("/api/calculator/scenarios/{scenario_id}/duplicate")
+async def duplicate_scenario(scenario_id: str):
+    scenario = await get_repo().get_scenario(scenario_id)
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Scenario not found")
+    
+    from datetime import datetime
+    now = datetime.now().isoformat()
+    new_name = f"{scenario['name']} (副本)"
+    new_scenario = await get_repo().create_scenario(new_name)
+    
+    steps = await get_repo().get_scenario_steps(scenario_id)
+    for i, step in enumerate(steps):
+        step_data = {
+            "scenario_id": new_scenario["id"],
+            "step_order": i,
+            "task_type": step.get("task_type", ""),
+            "model_id": step.get("model_id", ""),
+            "input_tokens": step.get("input_tokens", 0),
+            "output_tokens": step.get("output_tokens", 0),
+            "daily_calls": step.get("daily_calls", 1),
+            "cache_hit_rate": step.get("cache_hit_rate", 0.0)
+        }
+        await get_repo().add_step(step_data)
+    
+    result = await get_repo().get_scenario_with_costs(new_scenario["id"])
+    return {"code": 200, "message": "success", "data": result}
+
+@app.get("/api/calculator/templates")
+async def get_templates():
+    templates = await get_repo().get_templates()
+    return {"code": 200, "message": "success", "data": templates}
+
+@app.post("/api/calculator/templates/{template_name}/apply")
+async def apply_template(template_name: str):
+    templates = await get_repo().get_templates()
+    template = None
+    for t in templates:
+        if t["name"] == template_name:
+            template = t
+            break
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    
+    scenario = await get_repo().create_scenario(template["name"])
+    
+    for i, step_data in enumerate(template["steps"]):
+        step_data["scenario_id"] = scenario["id"]
+        step_data["step_order"] = i
+        await get_repo().add_step(step_data)
+    
+    result = await get_repo().get_scenario_with_costs(scenario["id"])
+    return {"code": 200, "message": "success", "data": result}
+
+@app.post("/api/calculator/compare")
+async def compare_scenarios(scenario_ids: List[str]):
+    results = []
+    for sid in scenario_ids:
+        scenario = await get_repo().get_scenario_with_costs(sid)
+        if scenario:
+            results.append({
+                "id": scenario["id"],
+                "name": scenario["name"],
+                "summary": scenario["summary"]
+            })
+    
+    if len(results) < 2:
+        return {"code": 200, "message": "success", "data": {"scenarios": results, "comparison": None}}
+    
+    comparison = {
+        "daily_cost_diff": round(results[0]["summary"]["total_daily_cost"] - results[1]["summary"]["total_daily_cost"], 4),
+        "monthly_cost_diff": round(results[0]["summary"]["total_monthly_cost"] - results[1]["summary"]["total_monthly_cost"], 2),
+        "yearly_cost_diff": round(results[0]["summary"]["total_yearly_cost"] - results[1]["summary"]["total_yearly_cost"], 2)
+    }
+    
+    return {"code": 200, "message": "success", "data": {"scenarios": results, "comparison": comparison}}

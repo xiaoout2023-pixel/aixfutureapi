@@ -28,10 +28,10 @@ class TursoDB:
                 args.append({"type": "null"})
             elif isinstance(p, bool):
                 args.append({"type": "text", "value": "1" if p else "0"})
+            elif isinstance(p, float):
+                args.append({"type": "text", "value": str(p)})
             elif isinstance(p, int):
                 args.append({"type": "integer", "value": str(p)})
-            elif isinstance(p, float):
-                args.append({"type": "float", "value": str(p)})
             else:
                 args.append({"type": "text", "value": str(p)})
         return args

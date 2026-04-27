@@ -53,6 +53,8 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 <a href="#model-types"><span class="method get">GET</span> /api/model-types</a>
 <a href="#cost-calc"><span class="method post">POST</span> /api/cost/calculate</a>
 <a href="#cost-compare"><span class="method post">POST</span> /api/cost/compare</a>
+<a href="#calc-scenarios"><span class="method get">GET</span> /api/calculator/scenarios</a>
+<a href="#calc-templates"><span class="method get">GET</span> /api/calculator/templates</a>
 </div>
 <div class="main">
 
@@ -393,6 +395,89 @@ source: 来源信息</pre>
     ]
   }
 }</pre>
+</div>
+</div>
+
+<div class="endpoint" id="calc-scenarios">
+<h2><span class="method get">GET</span> /api/calculator/scenarios</h2>
+<p class="desc">场景成本模拟器。支持多步骤 AI 调用流程的成本计算（TCO）。</p>
+
+<h3>场景管理</h3>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>POST</td><td>/api/calculator/scenarios</td><td>新建场景，请求体 {"name": "场景名"}</td></tr>
+<tr><td>GET</td><td>/api/calculator/scenarios</td><td>场景列表</td></tr>
+<tr><td>GET</td><td>/api/calculator/scenarios/{scenario_id}</td><td>获取场景详情（含步骤和成本汇总）</td></tr>
+<tr><td>PUT</td><td>/api/calculator/scenarios/{scenario_id}</td><td>更新场景名称</td></tr>
+<tr><td>DELETE</td><td>/api/calculator/scenarios/{scenario_id}</td><td>删除场景</td></tr>
+<tr><td>POST</td><td>/api/calculator/scenarios/{scenario_id}/duplicate</td><td>复制场景</td></tr>
+</table>
+
+<h3>步骤管理</h3>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>POST</td><td>/api/calculator/scenarios/{scenario_id}/steps</td><td>添加步骤</td></tr>
+<tr><td>GET</td><td>/api/calculator/scenarios/{scenario_id}/steps</td><td>获取步骤列表</td></tr>
+<tr><td>PUT</td><td>/api/calculator/steps/{step_id}</td><td>更新步骤</td></tr>
+<tr><td>DELETE</td><td>/api/calculator/steps/{step_id}</td><td>删除步骤</td></tr>
+<tr><td>POST</td><td>/api/calculator/scenarios/{scenario_id}/reorder</td><td>调整步骤顺序</td></tr>
+</table>
+
+<h3>步骤字段</h3>
+<table>
+<tr><th>字段</th><th>类型</th><th>说明</th></tr>
+<tr><td>task_type</td><td>string</td><td>任务类型，如"意图识别"、"内容生成"</td></tr>
+<tr><td>model_id</td><td>string</td><td>模型 ID</td></tr>
+<tr><td>input_tokens</td><td>int</td><td>输入 token 数量</td></tr>
+<tr><td>output_tokens</td><td>int</td><td>输出 token 数量</td></tr>
+<tr><td>daily_calls</td><td>int</td><td>调用量/天</td></tr>
+<tr><td>cache_hit_rate</td><td>float</td><td>缓存命中率，0-100</td></tr>
+</table>
+
+<h3>成本计算公式</h3>
+<table>
+<tr><th>指标</th><th>公式</th></tr>
+<tr><td>单次成本</td><td>(输入tokens × 输入单价 + 输出tokens × 输出单价) / 1,000,000</td></tr>
+<tr><td>日成本</td><td>单次成本 × 调用量 × (1 - 缓存命中率)</td></tr>
+<tr><td>月成本</td><td>日成本 × 30</td></tr>
+<tr><td>年成本</td><td>月成本 × 12</td></tr>
+</table>
+
+<h3>场景对比</h3>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>POST</td><td>/api/calculator/compare</td><td>对比多个场景，请求体 ["场景ID1", "场景ID2"]</td></tr>
+</table>
+</div>
+
+<div class="endpoint" id="calc-templates">
+<h2><span class="method get">GET</span> /api/calculator/templates</h2>
+<p class="desc">预置场景模板。一键生成完整表格。</p>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "name": "客服机器人",
+      "description": "完整的客服场景成本计算",
+      "steps": [
+        {"task_type": "意图识别", "input_tokens": 200, "output_tokens": 50, "daily_calls": 1000, "cache_hit_rate": 0},
+        {"task_type": "知识检索", "input_tokens": 500, "output_tokens": 200, "daily_calls": 800, "cache_hit_rate": 30},
+        {"task_type": "回复生成", "input_tokens": 300, "output_tokens": 500, "daily_calls": 800, "cache_hit_rate": 0}
+      ]
+    },
+    {"name": "内容审核链路", ...},
+    {"name": "翻译流程", ...},
+    {"name": "代码助手", ...}
+  ]
+}</pre>
+
+<h3>应用模板</h3>
+<table>
+<tr><th>方法</th><th>路径</th><th>说明</th></tr>
+<tr><td>POST</td><td>/api/calculator/templates/{模板名}/apply</td><td>根据模板创建场景</td></tr>
+</table>
 </div>
 
 </div>
