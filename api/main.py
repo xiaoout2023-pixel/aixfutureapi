@@ -96,11 +96,11 @@ async def list_models(
     # Apply type filter
     if type:
         type_map = {
-            "llm": lambda m: m.get("capabilities", {}).get("text_generation") and not m.get("capabilities", {}).get("multimodal"),
-            "multimodal": lambda m: m.get("capabilities", {}).get("multimodal"),
-            "vision": lambda m: m.get("capabilities", {}).get("vision") and not m.get("capabilities", {}).get("multimodal"),
+            "llm": lambda m: m.get("capabilities", {}).get("text") and not (m.get("capabilities", {}).get("vision") or m.get("capabilities", {}).get("audio")),
+            "multimodal": lambda m: m.get("capabilities", {}).get("vision") or m.get("capabilities", {}).get("audio"),
+            "vision": lambda m: m.get("capabilities", {}).get("vision") and not m.get("capabilities", {}).get("audio"),
             "audio": lambda m: m.get("capabilities", {}).get("audio"),
-            "code": lambda m: m.get("capabilities", {}).get("code_generation")
+            "code": lambda m: m.get("capabilities", {}).get("code")
         }
         filter_fn = type_map.get(type)
         if filter_fn:
@@ -154,8 +154,8 @@ async def compare_models(
     
     meta = {}
     if result:
-        cheapest_input = min(result, key=lambda x: x.get("pricing", {}).get("input_price_per_1m_tokens", float("inf")))
-        cheapest_output = min(result, key=lambda x: x.get("pricing", {}).get("output_price_per_1m_tokens", float("inf")))
+        cheapest_input = min(result, key=lambda x: x.get("pricing", {}).get("input_per_1m_tokens", float("inf")))
+        cheapest_output = min(result, key=lambda x: x.get("pricing", {}).get("output_per_1m_tokens", float("inf")))
         longest_context = max(result, key=lambda x: x.get("capabilities", {}).get("context_length", 0))
         best_overall = max(result, key=lambda x: x.get("scores", {}).get("overall_score", 0))
         
@@ -180,8 +180,8 @@ async def calculate_cost(request: CostCalcRequest):
         raise HTTPException(status_code=404, detail=f"Model {request.model_id} not found")
     
     pricing = model.get("pricing", {})
-    input_price = pricing.get("input_price_per_1m_tokens", 0)
-    output_price = pricing.get("output_price_per_1m_tokens", 0)
+    input_price = pricing.get("input_per_1m_tokens", 0)
+    output_price = pricing.get("output_per_1m_tokens", 0)
     
     input_cost = (request.input_tokens / 1000000) * input_price * request.quantity
     output_cost = (request.output_tokens / 1000000) * output_price * request.quantity
@@ -230,8 +230,8 @@ async def compare_cost(request: CostCompareRequest):
             continue
         
         pricing = model.get("pricing", {})
-        input_price = pricing.get("input_price_per_1m_tokens", 0)
-        output_price = pricing.get("output_price_per_1m_tokens", 0)
+        input_price = pricing.get("input_per_1m_tokens", 0)
+        output_price = pricing.get("output_per_1m_tokens", 0)
         
         input_cost = (request.input_tokens / 1000000) * input_price * request.quantity
         output_cost = (request.output_tokens / 1000000) * output_price * request.quantity

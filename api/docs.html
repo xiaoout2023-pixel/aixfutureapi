@@ -145,12 +145,13 @@ source: 来源对象
   model_page: 模型页面URL
   api_docs: API文档URL
   pricing_page: 定价页面URL
-  last_updated: 最后更新日期
   source_type: 数据来源类型（official / marketplace / open_source）
   region_restriction: 是否有地区限制（bool）
   enterprise_only: 是否仅企业可用（bool）
   openai_compatible: 是否兼容OpenAI API（bool）
-  sdk_support: 是否提供SDK（bool）</pre>
+  sdk_support: 是否提供SDK（bool）
+
+last_updated: 最后更新日期（YYYY-MM-DD）</pre>
 </div>
 
 <div class="endpoint" id="list-models">
@@ -448,7 +449,7 @@ source: 来源对象
         "model_id": "gpt-4o",
         "model_name": "GPT-4o",
         "provider": "openai",
-        "pricing": {"input_price_per_1m_tokens": 2.5, "output_price_per_1m_tokens": 10},
+        "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 10},
         "tags": ["vision", "coding", "multimodal"]
       }
     ],

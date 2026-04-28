@@ -15,8 +15,11 @@ class TursoDB:
         }
 
     def _convert_value(self, value):
-        if isinstance(value, dict) and "value" in value:
-            return value["value"]
+        if isinstance(value, dict):
+            if value.get("type") == "null":
+                return None
+            if "value" in value:
+                return value["value"]
         return value
 
     def _format_args(self, params):

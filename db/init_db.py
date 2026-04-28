@@ -7,17 +7,26 @@ from db.turso import TursoDB
 
 async def init_database():
     db = TursoDB()
-    
+
     print("Testing Turso database connection...")
-    
     try:
         result = await db.execute("SELECT 1 as test")
         print(f"Connection test result: {result}")
     except Exception as e:
         print(f"Connection error: {e}")
         return
-    
-    print("Creating models table...")
+
+    print("Dropping dependent tables first (FK constraints)...")
+    await db.execute("DROP TABLE IF EXISTS price_history")
+    await db.execute("DROP TABLE IF EXISTS scenario_steps")
+    await db.execute("DROP TABLE IF EXISTS scenarios")
+    await db.execute("DROP TABLE IF EXISTS leaderboards")
+    await db.execute("DROP TABLE IF EXISTS model_marketplace")
+
+    print("Dropping old models table...")
+    await db.execute("DROP TABLE IF EXISTS models")
+
+    print("Creating models table (flattened)...")
     await db.execute("""
         CREATE TABLE IF NOT EXISTS models (
             model_id TEXT PRIMARY KEY,
@@ -25,16 +34,68 @@ async def init_database():
             provider TEXT NOT NULL,
             release_date TEXT,
             status TEXT DEFAULT 'active',
-            capabilities TEXT,
-            pricing TEXT,
-            scores TEXT,
-            tags TEXT,
-            source TEXT,
-            last_updated TEXT
+            last_updated TEXT,
+            cap_text INTEGER DEFAULT 1,
+            cap_vision INTEGER DEFAULT 0,
+            cap_audio INTEGER DEFAULT 0,
+            cap_code INTEGER DEFAULT 0,
+            cap_reasoning INTEGER DEFAULT 0,
+            cap_tool_use INTEGER DEFAULT 0,
+            cap_function_calling INTEGER DEFAULT 0,
+            cap_image_generation INTEGER DEFAULT 0,
+            cap_video_understanding INTEGER DEFAULT 0,
+            cap_video_generation INTEGER DEFAULT 0,
+            cap_json_mode INTEGER DEFAULT 0,
+            cap_structured_output INTEGER DEFAULT 0,
+            cap_code_execution INTEGER DEFAULT 0,
+            cap_fine_tuning INTEGER DEFAULT 0,
+            cap_embedding INTEGER DEFAULT 0,
+            context_length INTEGER DEFAULT 0,
+            max_output_tokens INTEGER DEFAULT 4096,
+            reasoning_level TEXT DEFAULT 'low',
+            price_input_per_1m REAL DEFAULT 0,
+            price_output_per_1m REAL DEFAULT 0,
+            price_cached_input REAL,
+            price_batch_input REAL,
+            price_batch_output REAL,
+            price_per_image REAL,
+            price_per_request REAL,
+            price_reasoning_per_1m REAL,
+            price_currency TEXT DEFAULT 'USD',
+            price_free_tier INTEGER DEFAULT 0,
+            score_reasoning REAL DEFAULT 0,
+            score_coding REAL DEFAULT 0,
+            score_speed REAL DEFAULT 0,
+            score_cost_efficiency REAL DEFAULT 0,
+            score_overall REAL DEFAULT 0,
+            score_latency_level TEXT DEFAULT 'medium',
+            score_throughput_level TEXT DEFAULT 'medium',
+            tags TEXT DEFAULT '[]',
+            source_model_page TEXT,
+            source_api_docs TEXT,
+            source_pricing_page TEXT,
+            source_type TEXT DEFAULT 'official',
+            source_region_restriction INTEGER DEFAULT 0,
+            source_enterprise_only INTEGER DEFAULT 0,
+            source_openai_compatible INTEGER DEFAULT 0,
+            source_sdk_support INTEGER DEFAULT 0
         )
     """)
-    print("Created models table")
-    
+    print("Created models table (flattened)")
+
+    print("Creating indexes...")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_provider ON models(provider)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_status ON models(status)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_overall ON models(score_overall DESC)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_input_price ON models(price_input_per_1m)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_output_price ON models(price_output_per_1m)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_context ON models(context_length DESC)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_vision ON models(cap_vision)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_reasoning ON models(cap_reasoning)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_reasoning_level ON models(reasoning_level)")
+    await db.execute("CREATE INDEX IF NOT EXISTS idx_models_free_tier ON models(price_free_tier)")
+    print("Created indexes")
+
     print("Creating price_history table...")
     await db.execute("""
         CREATE TABLE IF NOT EXISTS price_history (
@@ -47,7 +108,7 @@ async def init_database():
         )
     """)
     print("Created price_history table")
-    
+
     print("Creating scenarios table...")
     await db.execute("""
         CREATE TABLE IF NOT EXISTS scenarios (
@@ -58,7 +119,7 @@ async def init_database():
         )
     """)
     print("Created scenarios table")
-    
+
     print("Creating scenario_steps table...")
     await db.execute("""
         CREATE TABLE IF NOT EXISTS scenario_steps (
@@ -76,7 +137,7 @@ async def init_database():
         )
     """)
     print("Created scenario_steps table")
-    
+
     print("Creating leaderboards table...")
     await db.execute("""
         CREATE TABLE IF NOT EXISTS leaderboards (
@@ -95,7 +156,7 @@ async def init_database():
         )
     """)
     print("Created leaderboards table")
-    
+
     print("Creating model_marketplace table...")
     await db.execute("""
         CREATE TABLE IF NOT EXISTS model_marketplace (
@@ -113,10 +174,10 @@ async def init_database():
         )
     """)
     print("Created model_marketplace table")
-    
+
     rows = await db.query("SELECT count(*) as cnt FROM models")
     print(f"Current model count: {rows}")
-    
+
     print("Database initialized successfully!")
 
 if __name__ == "__main__":
