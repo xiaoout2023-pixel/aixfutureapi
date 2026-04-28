@@ -461,13 +461,14 @@ class ModelRepository:
         statements = []
         for entry in entries:
             sql = """
-                INSERT INTO leaderboard (model_id, model_name, provider, board_type, rank, score,
+                INSERT INTO leaderboard (model_id, model_name, provider, board_type, parent_board_type, rank, score,
                                         sub_scores, generation_time, input_price, output_price,
                                         composite_price, is_reference, period, source, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(model_id, board_type, period) DO UPDATE SET
                     model_name=excluded.model_name,
                     provider=excluded.provider,
+                    parent_board_type=excluded.parent_board_type,
                     rank=excluded.rank,
                     score=excluded.score,
                     sub_scores=excluded.sub_scores,
@@ -484,6 +485,7 @@ class ModelRepository:
                 entry["model_name"],
                 entry["provider"],
                 entry["board_type"],
+                entry.get("parent_board_type"),
                 entry.get("rank"),
                 entry.get("score"),
                 json.dumps(entry.get("sub_scores", {})),
@@ -554,6 +556,33 @@ class ModelRepository:
                 "period": row["period"],
                 "board_types": [t.strip() for t in bt.split(",")] if bt else []
             })
+        return result
+
+    async def get_leaderboard_board_types(self) -> List[Dict]:
+        sql = """
+            SELECT DISTINCT board_type, parent_board_type FROM leaderboard
+            ORDER BY board_type
+        """
+        rows = await self.db.query_all(sql)
+        parents = {}
+        children = {}
+        for row in rows:
+            bt = row["board_type"]
+            parent = row.get("parent_board_type")
+            if isinstance(parent, dict):
+                parent = parent.get("value")
+            if parent is None or parent == "" or parent == "None":
+                if bt not in parents:
+                    parents[bt] = {"board_type": bt, "sub_boards": []}
+            else:
+                if parent not in children:
+                    children[parent] = []
+                children[parent].append(bt)
+
+        result = []
+        for bt, info in parents.items():
+            info["sub_boards"] = children.get(bt, [])
+            result.append(info)
         return result
 
     async def get_leaderboard_top(self, board_type: str, limit: int = 5) -> List[Dict]:

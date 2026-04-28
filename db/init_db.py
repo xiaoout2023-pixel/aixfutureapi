@@ -85,6 +85,7 @@ async def init_database():
             model_name TEXT NOT NULL,
             provider TEXT NOT NULL,
             board_type TEXT NOT NULL,
+            parent_board_type TEXT,
             rank INTEGER,
             score REAL,
             sub_scores TEXT,
@@ -100,6 +101,12 @@ async def init_database():
         )
     """)
     print("Created leaderboard table")
+    
+    try:
+        await db.execute("ALTER TABLE leaderboard ADD COLUMN parent_board_type TEXT")
+        print("Added parent_board_type column")
+    except Exception:
+        print("parent_board_type column may already exist, skipping")
     
     rows = await db.query("SELECT count(*) as cnt FROM models")
     print(f"Current model count: {rows}")

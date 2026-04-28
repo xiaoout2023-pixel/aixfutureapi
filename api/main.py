@@ -490,6 +490,7 @@ async def root():
             "calculator_templates": "/api/calculator/templates",
             "leaderboard": "/api/leaderboard?board_type=general",
             "leaderboard_periods": "/api/leaderboard/periods",
+            "leaderboard_board_types": "/api/leaderboard/board-types",
             "leaderboard_summary": "/api/leaderboard/summary"
         }
     }
@@ -665,7 +666,7 @@ async def compare_scenarios(scenario_ids: List[str]):
 
 @app.get("/api/leaderboard")
 async def get_leaderboard(
-    board_type: str = Query(..., description="榜单类型：general(通用榜) / multimodal(多模态榜)", pattern="^(general|multimodal)$"),
+    board_type: str = Query(..., description="榜单类型，如 general / multimodal / general_math_reasoning 等"),
     period: Optional[str] = Query(None, description="评测周期，如 2026-03，默认最新"),
     provider: Optional[str] = Query(None, description="按厂商筛选"),
     sort_by: Optional[str] = Query("rank", pattern="^(rank|score|generation_time|composite_price)$"),
@@ -718,6 +719,11 @@ async def get_leaderboard(
 async def get_leaderboard_periods():
     periods = await get_repo().get_leaderboard_periods()
     return {"code": 200, "message": "success", "data": periods}
+
+@app.get("/api/leaderboard/board-types")
+async def get_leaderboard_board_types():
+    board_types = await get_repo().get_leaderboard_board_types()
+    return {"code": 200, "message": "success", "data": board_types}
 
 @app.get("/api/leaderboard/summary")
 async def get_leaderboard_summary():

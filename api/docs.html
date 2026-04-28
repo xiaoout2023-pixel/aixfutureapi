@@ -78,6 +78,7 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 <h3>排行榜</h3>
 <div class="nav-group">
 <a href="#leaderboard"><span class="method get">GET</span> /api/leaderboard</a>
+<a href="#leaderboard-board-types"><span class="method get">GET</span> /api/leaderboard/board-types</a>
 <a href="#leaderboard-periods"><span class="method get">GET</span> /api/leaderboard/periods</a>
 <a href="#leaderboard-summary"><span class="method get">GET</span> /api/leaderboard/summary</a>
 </div>
@@ -507,11 +508,27 @@ source: 来源信息</pre>
 
 <div class="endpoint" id="leaderboard">
 <h2><span class="method get">GET</span> /api/leaderboard</h2>
-<p class="desc">获取排行榜数据。支持通用榜和多模态榜。</p>
+<p class="desc">获取排行榜数据。支持通用榜、多模态榜及其所有子榜单。</p>
+<h3>榜单类型一览</h3>
+<table>
+<tr><th>board_type</th><th>说明</th><th>父榜单</th></tr>
+<tr><td>general</td><td>通用总榜</td><td>-</td></tr>
+<tr><td>general_hallucination_control</td><td>幻觉控制</td><td>general</td></tr>
+<tr><td>general_math_reasoning</td><td>数学推理</td><td>general</td></tr>
+<tr><td>general_science_reasoning</td><td>科学推理</td><td>general</td></tr>
+<tr><td>general_instruction_following</td><td>精确指令遵循</td><td>general</td></tr>
+<tr><td>general_code_generation</td><td>代码生成</td><td>general</td></tr>
+<tr><td>general_agent_planning</td><td>智能体(任务规划)</td><td>general</td></tr>
+<tr><td>multimodal</td><td>多模态总榜</td><td>-</td></tr>
+<tr><td>multimodal_image_understanding</td><td>图像理解</td><td>multimodal</td></tr>
+<tr><td>multimodal_video_understanding</td><td>视频理解</td><td>multimodal</td></tr>
+<tr><td>multimodal_audio_understanding</td><td>音频理解</td><td>multimodal</td></tr>
+<tr><td>multimodal_multimodal_fusion</td><td>多模态融合</td><td>multimodal</td></tr>
+</table>
 <h3>参数</h3>
 <table>
 <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
-<tr><td>board_type</td><td>string</td><td>是</td><td>榜单类型：general(通用榜) / multimodal(多模态榜)</td></tr>
+<tr><td>board_type</td><td>string</td><td>是</td><td>榜单类型，见上表</td></tr>
 <tr><td>period</td><td>string</td><td>否</td><td>评测周期，如 2026-03，默认最新</td></tr>
 <tr><td>provider</td><td>string</td><td>否</td><td>按厂商筛选</td></tr>
 <tr><td>sort_by</td><td>string</td><td>否</td><td>排序字段：rank/score/generation_time/composite_price，默认 rank</td></tr>
@@ -529,16 +546,10 @@ source: 来源信息</pre>
       "model_name": "DeepSeek-R1",
       "provider": "deepseek",
       "board_type": "general",
+      "parent_board_type": null,
       "rank": 1,
-      "score": 89.5,
-      "sub_scores": {
-        "hallucination_control": 85.2,
-        "math_reasoning": 92.1,
-        "science_reasoning": 88.3,
-        "instruction_following": 90.1,
-        "code_generation": 89.7,
-        "agent_planning": 86.5
-      },
+      "score": 88.7,
+      "sub_scores": { ... },
       "generation_time": 12.5,
       "input_price": 4.0,
       "output_price": 16.0,
@@ -557,8 +568,43 @@ source: 来源信息</pre>
 <h3>示例</h3>
 <pre>/api/leaderboard?board_type=general
 /api/leaderboard?board_type=multimodal
-/api/leaderboard?board_type=general&amp;sort_by=score&amp;sort_order=desc
-/api/leaderboard?board_type=general&amp;provider=deepseek</pre>
+/api/leaderboard?board_type=general_math_reasoning
+/api/leaderboard?board_type=general_code_generation
+/api/leaderboard?board_type=multimodal_image_understanding
+/api/leaderboard?board_type=general&sort_by=score&sort_order=desc
+/api/leaderboard?board_type=general&provider=deepseek</pre>
+</div>
+
+<div class="endpoint" id="leaderboard-board-types">
+<h2><span class="method get">GET</span> /api/leaderboard/board-types</h2>
+<p class="desc">获取所有榜单类型及其层级关系。前端可据此构建榜单导航。</p>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "board_type": "general",
+      "sub_boards": [
+        "general_hallucination_control",
+        "general_math_reasoning",
+        "general_science_reasoning",
+        "general_instruction_following",
+        "general_code_generation",
+        "general_agent_planning"
+      ]
+    },
+    {
+      "board_type": "multimodal",
+      "sub_boards": [
+        "multimodal_image_understanding",
+        "multimodal_video_understanding",
+        "multimodal_audio_understanding",
+        "multimodal_multimodal_fusion"
+      ]
+    }
+  ]
+}</pre>
 </div>
 
 <div class="endpoint" id="leaderboard-periods">
