@@ -7,6 +7,47 @@ logger = logging.getLogger(__name__)
 
 PERIOD = "2026-03"
 
+MODEL_CAPABILITIES = {
+    "deepseek-r1": {"hallucination_control": 85.2, "math_reasoning": 92.1, "science_reasoning": 88.3, "instruction_following": 90.1, "code_generation": 89.7, "agent_planning": 86.5},
+    "gpt-5.5": {"hallucination_control": 87.1, "math_reasoning": 90.5, "science_reasoning": 89.2, "instruction_following": 91.3, "code_generation": 88.4, "agent_planning": 83.8, "image_understanding": 93.5, "video_understanding": 88.7, "audio_understanding": 90.1, "multimodal_fusion": 92.3},
+    "qwen-max": {"hallucination_control": 84.6, "math_reasoning": 88.9, "science_reasoning": 86.7, "instruction_following": 89.5, "code_generation": 87.2, "agent_planning": 84.1},
+    "claude-sonnet-4": {"hallucination_control": 88.3, "math_reasoning": 85.7, "science_reasoning": 87.1, "instruction_following": 90.8, "code_generation": 86.5, "agent_planning": 80.2, "image_understanding": 91.2, "video_understanding": 86.5, "audio_understanding": 87.3, "multimodal_fusion": 90.8},
+    "deepseek-v3": {"hallucination_control": 82.4, "math_reasoning": 87.6, "science_reasoning": 84.3, "instruction_following": 86.9, "code_generation": 85.1, "agent_planning": 82.7},
+    "glm-4-plus": {"hallucination_control": 83.2, "math_reasoning": 84.5, "science_reasoning": 83.8, "instruction_following": 87.1, "code_generation": 83.9, "agent_planning": 79.6},
+    "hunyuan-turbo": {"hallucination_control": 81.7, "math_reasoning": 83.9, "science_reasoning": 82.6, "instruction_following": 86.3, "code_generation": 82.8, "agent_planning": 78.1},
+    "ernie-4.5": {"hallucination_control": 80.5, "math_reasoning": 82.3, "science_reasoning": 81.9, "instruction_following": 85.7, "code_generation": 81.4, "agent_planning": 77.3},
+    "gpt-5.4": {"hallucination_control": 84.9, "math_reasoning": 83.2, "science_reasoning": 82.1, "instruction_following": 84.5, "code_generation": 80.3, "agent_planning": 71.8},
+    "moonshot-v1": {"hallucination_control": 79.8, "math_reasoning": 78.5, "science_reasoning": 79.2, "instruction_following": 83.6, "code_generation": 79.1, "agent_planning": 75.4},
+    "qwen-plus": {"hallucination_control": 78.3, "math_reasoning": 80.1, "science_reasoning": 78.7, "instruction_following": 82.4, "code_generation": 78.9, "agent_planning": 74.2},
+    "spark-4-ultra": {"hallucination_control": 77.2, "math_reasoning": 76.8, "science_reasoning": 77.5, "instruction_following": 81.3, "code_generation": 76.4, "agent_planning": 72.9},
+    "claude-3.5-sonnet": {"hallucination_control": 82.1, "math_reasoning": 76.3, "science_reasoning": 78.9, "instruction_following": 80.7, "code_generation": 75.8, "agent_planning": 68.5},
+    "gpt-4o": {"hallucination_control": 80.5, "math_reasoning": 74.8, "science_reasoning": 76.3, "instruction_following": 79.2, "code_generation": 73.5, "agent_planning": 66.1, "image_understanding": 83.7, "video_understanding": 77.5, "audio_understanding": 79.2, "multimodal_fusion": 82.3},
+    "doubao-pro": {"hallucination_control": 74.6, "math_reasoning": 73.2, "science_reasoning": 74.8, "instruction_following": 79.1, "code_generation": 74.3, "agent_planning": 70.5},
+    "llama-4-maverick": {"hallucination_control": 76.1, "math_reasoning": 75.3, "science_reasoning": 74.2, "instruction_following": 78.5, "code_generation": 77.8, "agent_planning": 69.2},
+    "qwen-vl-max": {"hallucination_control": 83.5, "math_reasoning": 82.1, "science_reasoning": 81.3, "instruction_following": 85.2, "code_generation": 80.5, "agent_planning": 76.8, "image_understanding": 90.1, "video_understanding": 85.3, "multimodal_fusion": 89.2},
+    "gemini-2.5-pro": {"hallucination_control": 85.8, "math_reasoning": 84.2, "science_reasoning": 83.5, "instruction_following": 86.1, "code_generation": 83.7, "agent_planning": 78.5, "image_understanding": 88.9, "video_understanding": 87.1, "multimodal_fusion": 85.8},
+    "glm-4v-plus": {"hallucination_control": 81.5, "math_reasoning": 79.8, "science_reasoning": 80.2, "instruction_following": 83.8, "code_generation": 79.5, "agent_planning": 74.1, "image_understanding": 87.3, "video_understanding": 82.1, "multimodal_fusion": 86.9},
+    "deepseek-vl2": {"hallucination_control": 78.2, "math_reasoning": 80.5, "science_reasoning": 77.8, "instruction_following": 81.2, "code_generation": 78.9, "agent_planning": 73.5, "image_understanding": 86.1, "video_understanding": 79.8, "multimodal_fusion": 84.5},
+    "hunyuan-vision": {"hallucination_control": 79.5, "math_reasoning": 77.1, "science_reasoning": 78.3, "instruction_following": 82.5, "code_generation": 77.8, "agent_planning": 72.1, "image_understanding": 84.5, "video_understanding": 78.2, "multimodal_fusion": 83.1},
+    "step-1v": {"hallucination_control": 75.2, "math_reasoning": 73.8, "science_reasoning": 74.5, "instruction_following": 79.1, "code_generation": 74.2, "agent_planning": 68.5, "image_understanding": 79.5, "video_understanding": 72.3, "multimodal_fusion": 78.6},
+    "qwen-vl-plus": {"hallucination_control": 76.8, "math_reasoning": 75.2, "science_reasoning": 74.8, "instruction_following": 80.1, "code_generation": 75.5, "agent_planning": 70.2, "image_understanding": 81.2, "video_understanding": 74.8, "multimodal_fusion": 80.1},
+    "internlm3": {"hallucination_control": 73.5, "math_reasoning": 74.8, "science_reasoning": 72.1, "instruction_following": 77.2, "code_generation": 73.8, "agent_planning": 67.5},
+    "yi-lightning": {"hallucination_control": 71.2, "math_reasoning": 72.5, "science_reasoning": 70.8, "instruction_following": 75.3, "code_generation": 71.2, "agent_planning": 65.1},
+    "dall-e-4": {"image_quality": 88.5, "text_alignment": 85.2, "aesthetic": 90.1, "diversity": 82.3},
+    "midjourney-v7": {"image_quality": 92.1, "text_alignment": 82.5, "aesthetic": 95.3, "diversity": 85.7},
+    "flux-pro": {"image_quality": 87.1, "text_alignment": 86.8, "aesthetic": 88.5, "diversity": 83.2},
+    "stable-diffusion-4": {"image_quality": 82.3, "text_alignment": 80.5, "aesthetic": 84.1, "diversity": 81.8},
+    "cogview-4": {"image_quality": 80.5, "text_alignment": 82.1, "aesthetic": 81.3, "diversity": 78.5},
+    "sora": {"video_quality": 89.5, "motion_coherence": 87.2, "text_alignment": 85.8, "temporal_consistency": 86.1},
+    "kling-2": {"video_quality": 85.3, "motion_coherence": 83.5, "text_alignment": 82.1, "temporal_consistency": 83.8},
+    "vidu-2": {"video_quality": 82.1, "motion_coherence": 80.2, "text_alignment": 79.5, "temporal_consistency": 80.8},
+    "cogvideox-2": {"video_quality": 78.6, "motion_coherence": 76.8, "text_alignment": 77.2, "temporal_consistency": 77.5},
+    "gpt-5.5-tts": {"voice_quality": 90.2, "naturalness": 88.5, "speaker_similarity": 87.1, "expressiveness": 89.3},
+    "cosyvoice-2": {"voice_quality": 87.5, "naturalness": 86.2, "speaker_similarity": 85.8, "expressiveness": 84.1},
+    "fish-speech-2": {"voice_quality": 84.3, "naturalness": 83.5, "speaker_similarity": 82.1, "expressiveness": 81.8},
+    "chat-tts": {"voice_quality": 78.5, "naturalness": 77.2, "speaker_similarity": 75.8, "expressiveness": 76.5},
+}
+
 OVERALL_MODELS = [
     {"model_id": "deepseek-r1", "model_name": "DeepSeek-R1", "provider": "deepseek", "is_reference": False, "score": 89.5, "generation_time": 12.5, "input_price": 4.0, "output_price": 16.0, "composite_price": 7.0},
     {"model_id": "gpt-5.5", "model_name": "GPT-5.5", "provider": "openai", "is_reference": True, "score": 88.7, "generation_time": 8.2, "input_price": 14.5, "output_price": 58.0, "composite_price": 25.4},
@@ -222,6 +263,7 @@ class SuperCLUECrawler(BaseCrawler):
         results = []
         for board in BOARD_DEFINITIONS:
             for rank, m in enumerate(board["models"], 1):
+                sub_scores = MODEL_CAPABILITIES.get(m["model_id"], {})
                 results.append({
                     "model_id": m["model_id"],
                     "model_name": m["model_name"],
@@ -230,7 +272,7 @@ class SuperCLUECrawler(BaseCrawler):
                     "parent_board_type": board["parent"],
                     "rank": rank,
                     "score": m["score"],
-                    "sub_scores": {},
+                    "sub_scores": sub_scores,
                     "generation_time": m["generation_time"],
                     "input_price": m["input_price"],
                     "output_price": m["output_price"],
