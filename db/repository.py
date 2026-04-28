@@ -602,10 +602,23 @@ class ModelRepository:
         parsed = row.copy()
         if isinstance(parsed.get("sub_scores"), str):
             try:
-                parsed["sub_scores"] = json.loads(parsed["sub_scores"])
+                val = json.loads(parsed["sub_scores"])
+                parsed["sub_scores"] = val if val else {}
             except:
                 parsed["sub_scores"] = {}
-        parsed["is_reference"] = bool(parsed.get("is_reference", 0))
+        if not parsed.get("sub_scores"):
+            parsed["sub_scores"] = {}
+        ref_val = parsed.get("is_reference", 0)
+        if isinstance(ref_val, dict):
+            ref_val = ref_val.get("value", 0)
+        parsed["is_reference"] = bool(int(ref_val)) if ref_val not in (None, "", "None") else False
+        parent = parsed.get("parent_board_type")
+        if isinstance(parent, dict):
+            parent = parent.get("value")
+        if parent is None or parent == "" or parent == "None":
+            parsed["parent_board_type"] = None
+        else:
+            parsed["parent_board_type"] = str(parent)
         if "id" in parsed:
             del parsed["id"]
         return parsed
