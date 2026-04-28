@@ -457,168 +457,135 @@ class ModelRepository:
 
     # ========== Leaderboard Methods ==========
 
-    async def save_leaderboard(self, entries: List[Dict]):
+    async def save_leaderboard_entry(self, entry: Dict):
+        sql = """
+            INSERT INTO leaderboards (category, rank, model_name, organization, score,
+                                      score_details, is_opensource, is_domestic, release_date, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(category, model_name) DO UPDATE SET
+                rank=excluded.rank,
+                organization=excluded.organization,
+                score=excluded.score,
+                score_details=excluded.score_details,
+                is_opensource=excluded.is_opensource,
+                is_domestic=excluded.is_domestic,
+                release_date=excluded.release_date,
+                updated_at=datetime('now')
+        """
+        params = [
+            entry["category"],
+            entry["rank"],
+            entry["model_name"],
+            entry["organization"],
+            entry.get("score"),
+            entry.get("score_details"),
+            entry.get("is_opensource", 0),
+            entry.get("is_domestic", 1),
+            entry.get("release_date", ""),
+        ]
+        await self.db.execute(sql, params)
+
+    async def save_leaderboard_entries(self, entries: List[Dict]):
         statements = []
         for entry in entries:
             sql = """
-                INSERT INTO leaderboard (model_id, model_name, provider, board_type, parent_board_type, rank, score,
-                                        sub_scores, generation_time, input_price, output_price,
-                                        composite_price, is_reference, period, source, last_updated)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(model_id, board_type, period) DO UPDATE SET
-                    model_name=excluded.model_name,
-                    provider=excluded.provider,
-                    parent_board_type=excluded.parent_board_type,
+                INSERT INTO leaderboards (category, rank, model_name, organization, score,
+                                          score_details, is_opensource, is_domestic, release_date, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                ON CONFLICT(category, model_name) DO UPDATE SET
                     rank=excluded.rank,
+                    organization=excluded.organization,
                     score=excluded.score,
-                    sub_scores=excluded.sub_scores,
-                    generation_time=excluded.generation_time,
-                    input_price=excluded.input_price,
-                    output_price=excluded.output_price,
-                    composite_price=excluded.composite_price,
-                    is_reference=excluded.is_reference,
-                    source=excluded.source,
-                    last_updated=excluded.last_updated
+                    score_details=excluded.score_details,
+                    is_opensource=excluded.is_opensource,
+                    is_domestic=excluded.is_domestic,
+                    release_date=excluded.release_date,
+                    updated_at=datetime('now')
             """
             params = [
-                entry["model_id"],
+                entry["category"],
+                entry["rank"],
                 entry["model_name"],
-                entry["provider"],
-                entry["board_type"],
-                entry.get("parent_board_type"),
-                entry.get("rank"),
+                entry["organization"],
                 entry.get("score"),
-                json.dumps(entry.get("sub_scores", {})),
-                entry.get("generation_time"),
-                entry.get("input_price"),
-                entry.get("output_price"),
-                entry.get("composite_price"),
-                1 if entry.get("is_reference") else 0,
-                entry.get("period"),
-                entry.get("source", "SuperCLUE"),
-                entry.get("last_updated")
+                entry.get("score_details"),
+                entry.get("is_opensource", 0),
+                entry.get("is_domestic", 1),
+                entry.get("release_date", ""),
             ]
             statements.append((sql, params))
-        if statements:
-            return await self.db.execute_batch(statements)
-        return None
+        return await self.db.execute_batch(statements)
 
-    async def get_leaderboard(self, board_type: str, period: Optional[str] = None,
-                               provider: Optional[str] = None,
-                               sort_by: str = "rank", sort_order: str = "asc") -> List[Dict]:
-        conditions = ["board_type = ?"]
-        params = [board_type]
-
-        if period:
-            conditions.append("period = ?")
-            params.append(period)
-
-        if provider:
-            conditions.append("provider = ?")
-            params.append(provider)
-
-        sql = f"SELECT * FROM leaderboard"
-        if conditions:
-            sql += " WHERE " + " AND ".join(conditions)
-
-        valid_sort = {
-            "rank": "rank",
-            "score": "score",
-            "generation_time": "generation_time",
-            "composite_price": "composite_price"
-        }
-        order_field = valid_sort.get(sort_by, "rank")
-        order_dir = "DESC" if sort_order.lower() == "desc" else "ASC"
-        if order_field == "rank":
-            order_dir = "ASC" if sort_order.lower() == "asc" else "DESC"
-        sql += f" ORDER BY {order_field} {order_dir}"
-
-        rows = await self.db.query_all(sql, params)
-        return [self._parse_leaderboard_row(row) for row in rows]
-
-    async def get_latest_period(self, board_type: str) -> Optional[str]:
-        sql = "SELECT MAX(period) as period FROM leaderboard WHERE board_type = ?"
-        row = await self.db.query_one(sql, [board_type])
-        return row.get("period") if row else None
-
-    async def get_leaderboard_periods(self) -> List[Dict]:
+    async def get_leaderboard_categories(self) -> List[Dict]:
         sql = """
-            SELECT period, GROUP_CONCAT(DISTINCT board_type) as board_types
-            FROM leaderboard
-            GROUP BY period
-            ORDER BY period DESC
+            SELECT category, COUNT(*) as model_count, MAX(updated_at) as updated_at
+            FROM leaderboards
+            GROUP BY category
+            ORDER BY category
         """
-        rows = await self.db.query_all(sql)
-        result = []
-        for row in rows:
-            bt = row.get("board_types", "")
-            result.append({
-                "period": row["period"],
-                "board_types": [t.strip() for t in bt.split(",")] if bt else []
-            })
-        return result
+        return await self.db.query_all(sql)
 
-    async def get_leaderboard_board_types(self) -> List[Dict]:
-        sql = """
-            SELECT DISTINCT board_type, parent_board_type FROM leaderboard
-            ORDER BY board_type
-        """
-        rows = await self.db.query_all(sql)
-        parents = {}
-        children = {}
-        for row in rows:
-            bt = row["board_type"]
-            parent = row.get("parent_board_type")
-            if isinstance(parent, dict):
-                parent = parent.get("value")
-            if parent is None or parent == "" or parent == "None":
-                if bt not in parents:
-                    parents[bt] = {"board_type": bt, "sub_boards": []}
-            else:
-                if parent not in children:
-                    children[parent] = []
-                children[parent].append(bt)
+    async def get_leaderboard(self, category: str, opensource: Optional[str] = None,
+                               domestic: Optional[str] = None, page: int = 1,
+                               page_size: int = 50) -> Dict:
+        conditions = ["category = ?"]
+        params = [category]
 
-        result = []
-        for bt, info in parents.items():
-            info["sub_boards"] = children.get(bt, [])
-            result.append(info)
-        return result
+        if opensource == "open":
+            conditions.append("is_opensource = 1")
+        elif opensource == "closed":
+            conditions.append("is_opensource = 0")
 
-    async def get_leaderboard_top(self, board_type: str, limit: int = 5) -> List[Dict]:
-        period = await self.get_latest_period(board_type)
-        if not period:
-            return []
-        sql = """
-            SELECT * FROM leaderboard
-            WHERE board_type = ? AND period = ? AND is_reference = 0
+        if domestic == "domestic":
+            conditions.append("is_domestic = 1")
+        elif domestic == "overseas":
+            conditions.append("is_domestic = 0")
+
+        where = " AND ".join(conditions)
+
+        count_sql = f"SELECT COUNT(*) as total FROM leaderboards WHERE {where}"
+        count_row = await self.db.query_one(count_sql, params)
+        total = int(count_row.get("total", 0)) if count_row else 0
+
+        sql = f"""
+            SELECT * FROM leaderboards
+            WHERE {where}
             ORDER BY rank ASC
-            LIMIT ?
+            LIMIT ? OFFSET ?
         """
-        rows = await self.db.query_all(sql, [board_type, period, limit])
-        return [self._parse_leaderboard_row(row) for row in rows]
+        params.extend([page_size, (page - 1) * page_size])
+        rows = await self.db.query_all(sql, params)
 
-    def _parse_leaderboard_row(self, row: Dict) -> Dict:
-        parsed = row.copy()
-        if isinstance(parsed.get("sub_scores"), str):
-            try:
-                val = json.loads(parsed["sub_scores"])
-                parsed["sub_scores"] = val if val else {}
-            except:
-                parsed["sub_scores"] = {}
-        if not parsed.get("sub_scores"):
-            parsed["sub_scores"] = {}
-        ref_val = parsed.get("is_reference", 0)
-        if isinstance(ref_val, dict):
-            ref_val = ref_val.get("value", 0)
-        parsed["is_reference"] = bool(int(ref_val)) if ref_val not in (None, "", "None") else False
-        parent = parsed.get("parent_board_type")
-        if isinstance(parent, dict):
-            parent = parent.get("value")
-        if parent is None or parent == "" or parent == "None":
-            parsed["parent_board_type"] = None
-        else:
-            parsed["parent_board_type"] = str(parent)
-        if "id" in parsed:
-            del parsed["id"]
-        return parsed
+        result = []
+        for row in rows:
+            entry = dict(row)
+            if isinstance(entry.get("score_details"), str):
+                try:
+                    entry["score_details"] = json.loads(entry["score_details"])
+                except:
+                    entry["score_details"] = {}
+            result.append(entry)
+
+        return {
+            "entries": result,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
+        }
+
+    async def get_leaderboard_detail(self, category: str) -> Optional[Dict]:
+        sql = "SELECT * FROM leaderboards WHERE category = ? ORDER BY rank ASC LIMIT 1"
+        row = await self.db.query_one(sql, [category])
+        if not row:
+            return None
+
+        count_sql = "SELECT COUNT(*) as total FROM leaderboards WHERE category = ?"
+        count_row = await self.db.query_one(count_sql, [category])
+        total = int(count_row.get("total", 0)) if count_row else 0
+
+        return {
+            "category": category,
+            "total_models": total,
+            "updated_at": row.get("updated_at"),
+        }

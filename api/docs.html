@@ -77,10 +77,9 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 </div>
 <h3>排行榜</h3>
 <div class="nav-group">
-<a href="#leaderboard"><span class="method get">GET</span> /api/leaderboard</a>
-<a href="#leaderboard-board-types"><span class="method get">GET</span> /api/leaderboard/board-types</a>
-<a href="#leaderboard-periods"><span class="method get">GET</span> /api/leaderboard/periods</a>
-<a href="#leaderboard-summary"><span class="method get">GET</span> /api/leaderboard/summary</a>
+<a href="#lb-categories"><span class="method get">GET</span> /api/leaderboard/categories</a>
+<a href="#lb-data"><span class="method get">GET</span> /api/leaderboard/:category</a>
+<a href="#lb-detail"><span class="method get">GET</span> /api/leaderboard/:category/detail</a>
 </div>
 </div>
 <div class="main">
@@ -506,147 +505,6 @@ source: 来源信息</pre>
 </table>
 </div>
 
-<div class="endpoint" id="leaderboard">
-<h2><span class="method get">GET</span> /api/leaderboard</h2>
-<p class="desc">获取排行榜数据。支持通用类5个总榜 + 多模态类1个总榜 + 12个子榜单。</p>
-<h3>榜单类型一览</h3>
-<table>
-<tr><th>board_type</th><th>说明</th><th>父榜单</th></tr>
-<tr><td>overall</td><td>总排行榜</td><td>-</td></tr>
-<tr><td>reasoning_model</td><td>推理模型总排行榜</td><td>-</td></tr>
-<tr><td>base_model</td><td>基础模型总排行榜</td><td>-</td></tr>
-<tr><td>reasoning_task</td><td>推理任务总排行榜</td><td>-</td></tr>
-<tr><td>opensource</td><td>开源排行榜</td><td>-</td></tr>
-<tr><td>multimodal</td><td>多模态榜</td><td>-</td></tr>
-<tr><td>mm_vlm</td><td>SuperCLUE-VLM 视觉语言模型</td><td>multimodal</td></tr>
-<tr><td>mm_image</td><td>SuperCLUE-Image 文生图</td><td>multimodal</td></tr>
-<tr><td>mm_comic</td><td>SuperCLUE-ComicShorts AI漫剧</td><td>multimodal</td></tr>
-<tr><td>mm_r2v</td><td>SuperCLUE-R2V 参考生视频</td><td>multimodal</td></tr>
-<tr><td>mm_i2v</td><td>SuperCLUE-I2V 图生视频</td><td>multimodal</td></tr>
-<tr><td>mm_edit</td><td>SuperCLUE-Edit 图像编辑</td><td>multimodal</td></tr>
-<tr><td>mm_t2v</td><td>SuperCLUE-T2V 文生视频</td><td>multimodal</td></tr>
-<tr><td>mm_world</td><td>SuperCLUE-World 世界模型</td><td>multimodal</td></tr>
-<tr><td>mm_voice_av</td><td>SuperCLUE-Voice 实时音视频</td><td>multimodal</td></tr>
-<tr><td>mm_voice_chat</td><td>SuperCLUE-Voice 实时语音交互</td><td>multimodal</td></tr>
-<tr><td>mm_tts</td><td>SuperCLUE-TTS 语音合成</td><td>multimodal</td></tr>
-<tr><td>mm_v</td><td>SuperCLUE-V 多模态理解</td><td>multimodal</td></tr>
-<tr><td>mm_vlr</td><td>SuperCLUE-VLR 视觉推理</td><td>multimodal</td></tr>
-</table>
-<h3>参数</h3>
-<table>
-<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
-<tr><td>board_type</td><td>string</td><td>是</td><td>榜单类型，见上表</td></tr>
-<tr><td>period</td><td>string</td><td>否</td><td>评测周期，如 2026-03，默认最新</td></tr>
-<tr><td>provider</td><td>string</td><td>否</td><td>按厂商筛选</td></tr>
-<tr><td>sort_by</td><td>string</td><td>否</td><td>排序字段：rank/score/generation_time/composite_price，默认 rank</td></tr>
-<tr><td>sort_order</td><td>string</td><td>否</td><td>排序方向：asc/desc，默认 asc</td></tr>
-<tr><td>page</td><td>int</td><td>否</td><td>页码，默认 1</td></tr>
-<tr><td>page_size</td><td>int</td><td>否</td><td>每页数量，默认 20，最大 100</td></tr>
-</table>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": [
-    {
-      "model_id": "deepseek-r1",
-      "model_name": "DeepSeek-R1",
-      "provider": "deepseek",
-      "board_type": "overall",
-      "parent_board_type": null,
-      "rank": 1,
-      "score": 89.5,
-      "generation_time": 12.5,
-      "input_price": 4.0,
-      "output_price": 16.0,
-      "composite_price": 7.0,
-      "is_reference": false,
-      "period": "2026-03",
-      "source": "SuperCLUE"
-    }
-  ],
-  "total": 15,
-  "page": 1,
-  "page_size": 20,
-  "period": "2026-03",
-  "board_type": "overall"
-}</pre>
-<h3>示例</h3>
-<pre>/api/leaderboard?board_type=overall
-/api/leaderboard?board_type=reasoning_model
-/api/leaderboard?board_type=opensource
-/api/leaderboard?board_type=multimodal
-/api/leaderboard?board_type=mm_vlm
-/api/leaderboard?board_type=mm_t2v
-/api/leaderboard?board_type=overall&sort_by=composite_price&sort_order=asc</pre>
-</div>
-
-<div class="endpoint" id="leaderboard-board-types">
-<h2><span class="method get">GET</span> /api/leaderboard/board-types</h2>
-<p class="desc">获取所有榜单类型及其层级关系。前端可据此构建榜单导航。</p>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": [
-    {
-      "board_type": "general",
-      "sub_boards": [
-        "general_hallucination_control",
-        "general_math_reasoning",
-        "general_science_reasoning",
-        "general_instruction_following",
-        "general_code_generation",
-        "general_agent_planning"
-      ]
-    },
-    {
-      "board_type": "multimodal",
-      "sub_boards": [
-        "multimodal_image_understanding",
-        "multimodal_video_understanding",
-        "multimodal_audio_understanding",
-        "multimodal_multimodal_fusion"
-      ]
-    }
-  ]
-}</pre>
-</div>
-
-<div class="endpoint" id="leaderboard-periods">
-<h2><span class="method get">GET</span> /api/leaderboard/periods</h2>
-<p class="desc">获取可用的评测周期列表。</p>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": [
-    {"period": "2026-03", "board_types": ["general", "multimodal"]},
-    {"period": "2026-02", "board_types": ["general"]}
-  ]
-}</pre>
-</div>
-
-<div class="endpoint" id="leaderboard-summary">
-<h2><span class="method get">GET</span> /api/leaderboard/summary</h2>
-<p class="desc">排行榜概览。返回通用榜和多模态榜的 Top5 摘要，供首页展示。</p>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "general": {
-      "period": "2026-03",
-      "top5": [排行榜前5条数据]
-    },
-    "multimodal": {
-      "period": "2026-03",
-      "top5": [排行榜前5条数据]
-    }
-  }
-}</pre>
-</div>
-
 </div>
 </div>
 
@@ -664,5 +522,127 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+
+<div class="endpoint" id="lb-categories">
+<h2><span class="method get">GET</span> /api/leaderboard/categories</h2>
+<p class="desc">获取排行榜分类列表，分为通用榜和多模态榜两大类。</p>
+<h3>请求参数</h3>
+<p>无</p>
+<h3>返回结果</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "general": [
+      {
+        "key": "general_overall",
+        "name": "总排行榜",
+        "description": "SuperCLUE通用榜综合能力排名",
+        "model_count": 15,
+        "updated_at": "2026-04-28T16:20:46"
+      }
+    ],
+    "multimodal": [
+      {
+        "key": "multimodal_vlm",
+        "name": "SuperCLUE-VLM 多模态视觉语言模型",
+        "description": "多模态视觉语言模型评测",
+        "model_count": 8,
+        "updated_at": "2026-04-28T16:22:58"
+      }
+    ]
+  }
+}</pre>
+<h3>排行榜分类 key 列表</h3>
+<table>
+<tr><th>分类</th><th>key</th><th>说明</th></tr>
+<tr><td rowspan="5">通用榜</td><td>general_overall</td><td>总排行榜</td></tr>
+<tr><td>general_reasoning</td><td>推理模型总排行榜</td></tr>
+<tr><td>general_base</td><td>基础模型总排行榜</td></tr>
+<tr><td>general_reasoning_task</td><td>推理任务总排行榜</td></tr>
+<tr><td>general_opensource</td><td>开源排行榜</td></tr>
+<tr><td rowspan="8">多模态榜</td><td>multimodal_vlm</td><td>SuperCLUE-VLM 多模态视觉语言模型</td></tr>
+<tr><td>multimodal_image</td><td>SuperCLUE-Image 文生图</td></tr>
+<tr><td>multimodal_t2v</td><td>SuperCLUE-T2V 文生视频</td></tr>
+<tr><td>multimodal_i2v</td><td>SuperCLUE-I2V 图生视频模型</td></tr>
+<tr><td>multimodal_comicshorts</td><td>SuperCLUE-ComicShorts AI漫剧大模型</td></tr>
+<tr><td>multimodal_r2v</td><td>SuperCLUE-R2V 参考生视频</td></tr>
+<tr><td>multimodal_edit</td><td>SuperCLUE-Edit 图像编辑</td></tr>
+<tr><td>multimodal_vlr</td><td>SuperCLUE-VLR 视觉推理</td></tr>
+</table>
+</div>
+
+<div class="endpoint" id="lb-data">
+<h2><span class="method get">GET</span> /api/leaderboard/:category</h2>
+<p class="desc">获取指定排行榜的数据，支持按开源类型、地域筛选和分页。</p>
+<h3>请求参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+<tr><td>category</td><td>string</td><td>是</td><td>排行榜分类 key（路径参数）</td></tr>
+<tr><td>opensource</td><td>string</td><td>否</td><td>开源类型筛选: open(开源) / closed(闭源)</td></tr>
+<tr><td>domestic</td><td>string</td><td>否</td><td>地域筛选: domestic(国内) / overseas(海外)</td></tr>
+<tr><td>page</td><td>int</td><td>否</td><td>页码，默认1</td></tr>
+<tr><td>page_size</td><td>int</td><td>否</td><td>每页条数，默认50，最大100</td></tr>
+</table>
+<h3>返回结果</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "category": "general_overall",
+    "name": "总排行榜",
+    "description": "SuperCLUE通用榜综合能力排名",
+    "group": "general",
+    "entries": [
+      {
+        "id": 1,
+        "category": "general_overall",
+        "rank": 1,
+        "model_name": "Claude-Opus-4.6",
+        "organization": "Anthropic",
+        "score": 76.82,
+        "score_details": {"数学推理": 78.5, "科学推理": 80.2, "代码生成": 82.1},
+        "is_opensource": 0,
+        "is_domestic": 0,
+        "release_date": "",
+        "updated_at": "2026-04-28T16:20:02"
+      }
+    ],
+    "total": 15,
+    "page": 1,
+    "page_size": 50,
+    "total_pages": 1
+  }
+}</pre>
+<h3>错误码</h3>
+<table>
+<tr><th>状态码</th><th>说明</th></tr>
+<tr><td>404</td><td>分类不存在</td></tr>
+</table>
+</div>
+
+<div class="endpoint" id="lb-detail">
+<h2><span class="method get">GET</span> /api/leaderboard/:category/detail</h2>
+<p class="desc">获取排行榜详情信息，包括模型数量和更新时间。</p>
+<h3>请求参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+<tr><td>category</td><td>string</td><td>是</td><td>排行榜分类 key（路径参数）</td></tr>
+</table>
+<h3>返回结果</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "category": "general_overall",
+    "name": "总排行榜",
+    "description": "SuperCLUE通用榜综合能力排名",
+    "group": "general",
+    "total_models": 15,
+    "updated_at": "2026-04-28T16:20:02"
+  }
+}</pre>
+</div>
+
 </body>
 </html>

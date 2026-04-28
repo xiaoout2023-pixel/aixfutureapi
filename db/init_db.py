@@ -77,36 +77,24 @@ async def init_database():
     """)
     print("Created scenario_steps table")
     
-    print("Creating leaderboard table...")
+    print("Creating leaderboards table...")
     await db.execute("""
-        CREATE TABLE IF NOT EXISTS leaderboard (
+        CREATE TABLE IF NOT EXISTS leaderboards (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            model_id TEXT NOT NULL,
+            category TEXT NOT NULL,
+            rank INTEGER NOT NULL,
             model_name TEXT NOT NULL,
-            provider TEXT NOT NULL,
-            board_type TEXT NOT NULL,
-            parent_board_type TEXT,
-            rank INTEGER,
+            organization TEXT NOT NULL,
             score REAL,
-            sub_scores TEXT,
-            generation_time REAL,
-            input_price REAL,
-            output_price REAL,
-            composite_price REAL,
-            is_reference INTEGER DEFAULT 0,
-            period TEXT,
-            source TEXT DEFAULT 'SuperCLUE',
-            last_updated TEXT,
-            UNIQUE(model_id, board_type, period)
+            score_details TEXT,
+            is_opensource INTEGER DEFAULT 0,
+            is_domestic INTEGER DEFAULT 1,
+            release_date TEXT,
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(category, model_name)
         )
     """)
-    print("Created leaderboard table")
-    
-    try:
-        await db.execute("ALTER TABLE leaderboard ADD COLUMN parent_board_type TEXT")
-        print("Added parent_board_type column")
-    except Exception:
-        print("parent_board_type column may already exist, skipping")
+    print("Created leaderboards table")
     
     rows = await db.query("SELECT count(*) as cnt FROM models")
     print(f"Current model count: {rows}")
