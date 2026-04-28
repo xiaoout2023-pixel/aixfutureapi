@@ -75,6 +75,12 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 <a href="#calc-scenarios"><span class="method get">GET</span> /api/calculator/scenarios</a>
 <a href="#calc-templates"><span class="method get">GET</span> /api/calculator/templates</a>
 </div>
+<h3>排行榜</h3>
+<div class="nav-group">
+<a href="#leaderboard"><span class="method get">GET</span> /api/leaderboard</a>
+<a href="#leaderboard-periods"><span class="method get">GET</span> /api/leaderboard/periods</a>
+<a href="#leaderboard-summary"><span class="method get">GET</span> /api/leaderboard/summary</a>
+</div>
 </div>
 <div class="main">
 
@@ -497,6 +503,96 @@ source: 来源信息</pre>
 <tr><th>方法</th><th>路径</th><th>说明</th></tr>
 <tr><td>POST</td><td>/api/calculator/templates/{模板名}/apply</td><td>根据模板创建场景</td></tr>
 </table>
+</div>
+
+<div class="endpoint" id="leaderboard">
+<h2><span class="method get">GET</span> /api/leaderboard</h2>
+<p class="desc">获取排行榜数据。支持通用榜和多模态榜。</p>
+<h3>参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+<tr><td>board_type</td><td>string</td><td>是</td><td>榜单类型：general(通用榜) / multimodal(多模态榜)</td></tr>
+<tr><td>period</td><td>string</td><td>否</td><td>评测周期，如 2026-03，默认最新</td></tr>
+<tr><td>provider</td><td>string</td><td>否</td><td>按厂商筛选</td></tr>
+<tr><td>sort_by</td><td>string</td><td>否</td><td>排序字段：rank/score/generation_time/composite_price，默认 rank</td></tr>
+<tr><td>sort_order</td><td>string</td><td>否</td><td>排序方向：asc/desc，默认 asc</td></tr>
+<tr><td>page</td><td>int</td><td>否</td><td>页码，默认 1</td></tr>
+<tr><td>page_size</td><td>int</td><td>否</td><td>每页数量，默认 20，最大 100</td></tr>
+</table>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "model_id": "deepseek-r1",
+      "model_name": "DeepSeek-R1",
+      "provider": "deepseek",
+      "board_type": "general",
+      "rank": 1,
+      "score": 89.5,
+      "sub_scores": {
+        "hallucination_control": 85.2,
+        "math_reasoning": 92.1,
+        "science_reasoning": 88.3,
+        "instruction_following": 90.1,
+        "code_generation": 89.7,
+        "agent_planning": 86.5
+      },
+      "generation_time": 12.5,
+      "input_price": 4.0,
+      "output_price": 16.0,
+      "composite_price": 7.0,
+      "is_reference": false,
+      "period": "2026-03",
+      "source": "SuperCLUE"
+    }
+  ],
+  "total": 15,
+  "page": 1,
+  "page_size": 20,
+  "period": "2026-03",
+  "board_type": "general"
+}</pre>
+<h3>示例</h3>
+<pre>/api/leaderboard?board_type=general
+/api/leaderboard?board_type=multimodal
+/api/leaderboard?board_type=general&amp;sort_by=score&amp;sort_order=desc
+/api/leaderboard?board_type=general&amp;provider=deepseek</pre>
+</div>
+
+<div class="endpoint" id="leaderboard-periods">
+<h2><span class="method get">GET</span> /api/leaderboard/periods</h2>
+<p class="desc">获取可用的评测周期列表。</p>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {"period": "2026-03", "board_types": ["general", "multimodal"]},
+    {"period": "2026-02", "board_types": ["general"]}
+  ]
+}</pre>
+</div>
+
+<div class="endpoint" id="leaderboard-summary">
+<h2><span class="method get">GET</span> /api/leaderboard/summary</h2>
+<p class="desc">排行榜概览。返回通用榜和多模态榜的 Top5 摘要，供首页展示。</p>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "general": {
+      "period": "2026-03",
+      "top5": [排行榜前5条数据]
+    },
+    "multimodal": {
+      "period": "2026-03",
+      "top5": [排行榜前5条数据]
+    }
+  }
+}</pre>
 </div>
 
 </div>

@@ -487,7 +487,10 @@ async def root():
             "model_types": "/api/model-types",
             "status": "/api/status",
             "scenarios": "/api/calculator/scenarios",
-            "calculator_templates": "/api/calculator/templates"
+            "calculator_templates": "/api/calculator/templates",
+            "leaderboard": "/api/leaderboard?board_type=general",
+            "leaderboard_periods": "/api/leaderboard/periods",
+            "leaderboard_summary": "/api/leaderboard/summary"
         }
     }
 
@@ -657,3 +660,84 @@ async def compare_scenarios(scenario_ids: List[str]):
     }
     
     return {"code": 200, "message": "success", "data": {"scenarios": results, "comparison": comparison}}
+
+# ========== Leaderboard API ==========
+
+@app.get("/api/leaderboard")
+async def get_leaderboard(
+    board_type: str = Query(..., description="榜单类型：general(通用榜) / multimodal(多模态榜)", pattern="^(general|multimodal)$"),
+    period: Optional[str] = Query(None, description="评测周期，如 2026-03，默认最新"),
+    provider: Optional[str] = Query(None, description="按厂商筛选"),
+    sort_by: Optional[str] = Query("rank", pattern="^(rank|score|generation_time|composite_price)$"),
+    sort_order: Optional[str] = Query("asc", pattern="^(asc|desc)$"),
+    page: Optional[int] = Query(1, ge=1),
+    page_size: Optional[int] = Query(20, ge=1, le=100)
+):
+    repo = get_repo()
+
+    if not period:
+        period = await repo.get_latest_period(board_type)
+
+    if not period:
+        return {
+            "code": 200,
+            "message": "success",
+            "data": [],
+            "total": 0,
+            "page": page,
+            "page_size": page_size,
+            "period": None,
+            "board_type": board_type
+        }
+
+    entries = await repo.get_leaderboard(
+        board_type=board_type,
+        period=period,
+        provider=provider,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
+
+    total = len(entries)
+    start = (page - 1) * page_size
+    end = start + page_size
+    entries = entries[start:end]
+
+    return {
+        "code": 200,
+        "message": "success",
+        "data": entries,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "period": period,
+        "board_type": board_type
+    }
+
+@app.get("/api/leaderboard/periods")
+async def get_leaderboard_periods():
+    periods = await get_repo().get_leaderboard_periods()
+    return {"code": 200, "message": "success", "data": periods}
+
+@app.get("/api/leaderboard/summary")
+async def get_leaderboard_summary():
+    repo = get_repo()
+    general_top = await repo.get_leaderboard_top("general", 5)
+    multimodal_top = await repo.get_leaderboard_top("multimodal", 5)
+    general_period = await repo.get_latest_period("general")
+    multimodal_period = await repo.get_latest_period("multimodal")
+
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "general": {
+                "period": general_period,
+                "top5": general_top
+            },
+            "multimodal": {
+                "period": multimodal_period,
+                "top5": multimodal_top
+            }
+        }
+    }

@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from crawler.openai import OpenAICrawler
 from crawler.anthropic import AnthropicCrawler
 from crawler.aliyun import AliyunCrawler
+from crawler.superclue import SuperCLUECrawler
 from db.turso import TursoDB
 from db.repository import ModelRepository
 
@@ -54,6 +55,19 @@ async def run_all_crawlers():
         logger.info(f"Saved {len(all_models)} models to Turso database")
     except Exception as e:
         error_msg = f"Error saving to Turso: {e}"
+        logger.error(error_msg)
+        errors.append(error_msg)
+
+    logger.info("Running SuperCLUE leaderboard crawler...")
+    try:
+        sc_crawler = SuperCLUECrawler()
+        leaderboard_entries = await sc_crawler.crawl()
+        db = TursoDB()
+        repo = ModelRepository(db)
+        await repo.save_leaderboard(leaderboard_entries)
+        logger.info(f"Saved {len(leaderboard_entries)} leaderboard entries to Turso database")
+    except Exception as e:
+        error_msg = f"Error saving leaderboard to Turso: {e}"
         logger.error(error_msg)
         errors.append(error_msg)
 

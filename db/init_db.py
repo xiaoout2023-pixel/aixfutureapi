@@ -77,6 +77,30 @@ async def init_database():
     """)
     print("Created scenario_steps table")
     
+    print("Creating leaderboard table...")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS leaderboard (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            model_id TEXT NOT NULL,
+            model_name TEXT NOT NULL,
+            provider TEXT NOT NULL,
+            board_type TEXT NOT NULL,
+            rank INTEGER,
+            score REAL,
+            sub_scores TEXT,
+            generation_time REAL,
+            input_price REAL,
+            output_price REAL,
+            composite_price REAL,
+            is_reference INTEGER DEFAULT 0,
+            period TEXT,
+            source TEXT DEFAULT 'SuperCLUE',
+            last_updated TEXT,
+            UNIQUE(model_id, board_type, period)
+        )
+    """)
+    print("Created leaderboard table")
+    
     rows = await db.query("SELECT count(*) as cnt FROM models")
     print(f"Current model count: {rows}")
     

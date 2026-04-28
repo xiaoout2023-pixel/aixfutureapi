@@ -454,3 +454,129 @@ class ModelRepository:
                 ]
             }
         ]
+
+    # ========== Leaderboard Methods ==========
+
+    async def save_leaderboard(self, entries: List[Dict]):
+        statements = []
+        for entry in entries:
+            sql = """
+                INSERT INTO leaderboard (model_id, model_name, provider, board_type, rank, score,
+                                        sub_scores, generation_time, input_price, output_price,
+                                        composite_price, is_reference, period, source, last_updated)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(model_id, board_type, period) DO UPDATE SET
+                    model_name=excluded.model_name,
+                    provider=excluded.provider,
+                    rank=excluded.rank,
+                    score=excluded.score,
+                    sub_scores=excluded.sub_scores,
+                    generation_time=excluded.generation_time,
+                    input_price=excluded.input_price,
+                    output_price=excluded.output_price,
+                    composite_price=excluded.composite_price,
+                    is_reference=excluded.is_reference,
+                    source=excluded.source,
+                    last_updated=excluded.last_updated
+            """
+            params = [
+                entry["model_id"],
+                entry["model_name"],
+                entry["provider"],
+                entry["board_type"],
+                entry.get("rank"),
+                entry.get("score"),
+                json.dumps(entry.get("sub_scores", {})),
+                entry.get("generation_time"),
+                entry.get("input_price"),
+                entry.get("output_price"),
+                entry.get("composite_price"),
+                1 if entry.get("is_reference") else 0,
+                entry.get("period"),
+                entry.get("source", "SuperCLUE"),
+                entry.get("last_updated")
+            ]
+            statements.append((sql, params))
+        if statements:
+            return await self.db.execute_batch(statements)
+        return None
+
+    async def get_leaderboard(self, board_type: str, period: Optional[str] = None,
+                               provider: Optional[str] = None,
+                               sort_by: str = "rank", sort_order: str = "asc") -> List[Dict]:
+        conditions = ["board_type = ?"]
+        params = [board_type]
+
+        if period:
+            conditions.append("period = ?")
+            params.append(period)
+
+        if provider:
+            conditions.append("provider = ?")
+            params.append(provider)
+
+        sql = f"SELECT * FROM leaderboard"
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+
+        valid_sort = {
+            "rank": "rank",
+            "score": "score",
+            "generation_time": "generation_time",
+            "composite_price": "composite_price"
+        }
+        order_field = valid_sort.get(sort_by, "rank")
+        order_dir = "DESC" if sort_order.lower() == "desc" else "ASC"
+        if order_field == "rank":
+            order_dir = "ASC" if sort_order.lower() == "asc" else "DESC"
+        sql += f" ORDER BY {order_field} {order_dir}"
+
+        rows = await self.db.query_all(sql, params)
+        return [self._parse_leaderboard_row(row) for row in rows]
+
+    async def get_latest_period(self, board_type: str) -> Optional[str]:
+        sql = "SELECT MAX(period) as period FROM leaderboard WHERE board_type = ?"
+        row = await self.db.query_one(sql, [board_type])
+        return row.get("period") if row else None
+
+    async def get_leaderboard_periods(self) -> List[Dict]:
+        sql = """
+            SELECT period, GROUP_CONCAT(DISTINCT board_type) as board_types
+            FROM leaderboard
+            GROUP BY period
+            ORDER BY period DESC
+        """
+        rows = await self.db.query_all(sql)
+        result = []
+        for row in rows:
+            bt = row.get("board_types", "")
+            result.append({
+                "period": row["period"],
+                "board_types": [t.strip() for t in bt.split(",")] if bt else []
+            })
+        return result
+
+    async def get_leaderboard_top(self, board_type: str, limit: int = 5) -> List[Dict]:
+        period = await self.get_latest_period(board_type)
+        if not period:
+            return []
+        sql = """
+            SELECT * FROM leaderboard
+            WHERE board_type = ? AND period = ? AND is_reference = 0
+            ORDER BY rank ASC
+            LIMIT ?
+        """
+        rows = await self.db.query_all(sql, [board_type, period, limit])
+        return [self._parse_leaderboard_row(row) for row in rows]
+
+    def _parse_leaderboard_row(self, row: Dict) -> Dict:
+        parsed = row.copy()
+        if isinstance(parsed.get("sub_scores"), str):
+            try:
+                parsed["sub_scores"] = json.loads(parsed["sub_scores"])
+            except:
+                parsed["sub_scores"] = {}
+        parsed["is_reference"] = bool(parsed.get("is_reference", 0))
+        if "id" in parsed:
+            del parsed["id"]
+        return parsed
