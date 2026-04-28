@@ -30,3 +30,11 @@ test_*.py
 
 # Vercel build artifacts
 .vercel/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Admin scripts
+turso_admin.py

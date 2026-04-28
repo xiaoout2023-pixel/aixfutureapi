@@ -2,8 +2,26 @@ import os
 import json
 import httpx
 
-TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL", "libsql://ai-models-db-xiaoout.aws-us-west-2.turso.io")
-TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzcxMzk0NTcsImlkIjoiMDE5ZGM1YzMtYjEwMS03ZmI3LTk2MTktMjcxMTQ5MTc0NjMxIiwicmlkIjoiMWRiYjJmYmQtYzBiOS00MGVmLTk1OGYtODMxMDQ5OGI3MGEwIn0.ZJPCre8vUElMfKyEJITI6cdLcj9yDwjGxd49FmoXYBe5VlaVbs4LTKYffeTzbbKZGYOB8KCd-ubqrzjOs6mGCg")
+APP_ENV = os.environ.get("APP_ENV", "dev")
+
+DB_CONFIGS = {
+    "dev": {
+        "url": os.environ.get("TURSO_DEV_URL", "libsql://ai-models-db-dev.aws-us-west-2.turso.io"),
+        "token": os.environ.get("TURSO_DEV_TOKEN", ""),
+    },
+    "uat": {
+        "url": os.environ.get("TURSO_UAT_URL", "libsql://ai-models-db-xiaoout.aws-us-west-2.turso.io"),
+        "token": os.environ.get("TURSO_UAT_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzcxMzk0NTcsImlkIjoiMDE5ZGM1YzMtYjEwMS03ZmI3LTk2MTktMjcxMTQ5MTc0NjMxIiwicmlkIjoiMWRiYjJmYmQtYzBiOS00MGVmLTk1OGYtODMxMDQ5OGI3MGEwIn0.ZJPCre8vUElMfKyEJITI6cdLcj9yDwjGxd49FmoXYBe5VlaVbs4LTKYffeTzbbKZGYOB8KCd-ubqrzjOs6mGCg"),
+    },
+    "prod": {
+        "url": os.environ.get("TURSO_PROD_URL", "libsql://ai-models-db-prod.aws-us-west-2.turso.io"),
+        "token": os.environ.get("TURSO_PROD_TOKEN", ""),
+    },
+}
+
+TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL", DB_CONFIGS[APP_ENV]["url"])
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", DB_CONFIGS[APP_ENV]["token"])
+
 
 class TursoDB:
     def __init__(self, url=None, token=None):

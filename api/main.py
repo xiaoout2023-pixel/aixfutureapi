@@ -5,11 +5,22 @@ from typing import Optional, List
 import os
 import sys
 
-# Resolve project root for Vercel Serverless environment
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.abspath(os.path.join(_current_dir, '..'))
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
+
+_env_file = os.path.join(_project_root, '.env')
+if os.path.exists(_env_file):
+    with open(_env_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, _, value = line.partition('=')
+                key = key.strip()
+                value = value.strip()
+                if key and key not in os.environ:
+                    os.environ[key] = value
 
 from db.turso import TursoDB
 from db.repository import ModelRepository
