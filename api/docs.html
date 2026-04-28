@@ -28,7 +28,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .sidebar .get { background: #61affe; color: #fff; }
 .sidebar .post { background: #49cc90; color: #fff; }
 .main { margin-left: 260px; flex: 1; padding: 32px 40px; max-width: 900px; transition: margin-left 0.3s ease; }
-.sidebar.collapsed + .main { margin-left: 0; }
+.sidebar.collapsed ~ .main { margin-left: 0; }
 .endpoint { margin-bottom: 48px; }
 .endpoint h2 { font-size: 18px; margin-bottom: 6px; }
 .endpoint h2 .method { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 13px; font-weight: bold; margin-right: 8px; }
@@ -505,24 +505,6 @@ source: 来源信息</pre>
 </table>
 </div>
 
-</div>
-</div>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    var headers = document.querySelectorAll('.sidebar h3');
-    headers.forEach(function(header) {
-        header.addEventListener('click', function() {
-            header.classList.toggle('collapsed');
-            var nextSibling = header.nextElementSibling;
-            if (nextSibling && nextSibling.classList.contains('nav-group')) {
-                nextSibling.classList.toggle('collapsed');
-            }
-        });
-    });
-});
-</script>
-
 <div class="endpoint" id="lb-categories">
 <h2><span class="method get">GET</span> /api/leaderboard/categories</h2>
 <p class="desc">获取排行榜分类列表，分为通用榜和多模态榜两大类。</p>
@@ -643,6 +625,24 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 }</pre>
 </div>
+
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var headers = document.querySelectorAll('.sidebar h3');
+    headers.forEach(function(header) {
+        header.addEventListener('click', function() {
+            header.classList.toggle('collapsed');
+            var nextSibling = header.nextElementSibling;
+            if (nextSibling && nextSibling.classList.contains('nav-group')) {
+                nextSibling.classList.toggle('collapsed');
+            }
+        });
+    });
+});
+</script>
 
 </body>
 </html>
