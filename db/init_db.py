@@ -96,6 +96,24 @@ async def init_database():
     """)
     print("Created leaderboards table")
     
+    print("Creating model_marketplace table...")
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS model_marketplace (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            model_id TEXT NOT NULL,
+            marketplace TEXT NOT NULL,
+            marketplace_model_id TEXT,
+            input_price REAL,
+            output_price REAL,
+            latency_ms INTEGER,
+            uptime REAL,
+            availability TEXT,
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(model_id, marketplace)
+        )
+    """)
+    print("Created model_marketplace table")
+    
     rows = await db.query("SELECT count(*) as cnt FROM models")
     print(f"Current model count: {rows}")
     

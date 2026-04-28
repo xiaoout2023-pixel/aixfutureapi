@@ -589,3 +589,109 @@ class ModelRepository:
             "total_models": total,
             "updated_at": row.get("updated_at"),
         }
+
+    # ========== Marketplace Methods ==========
+
+    async def save_marketplace_entry(self, entry: Dict):
+        sql = """
+            INSERT INTO model_marketplace (model_id, marketplace, marketplace_model_id,
+                                           input_price, output_price, latency_ms, uptime,
+                                           availability, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+            ON CONFLICT(model_id, marketplace) DO UPDATE SET
+                marketplace_model_id=excluded.marketplace_model_id,
+                input_price=excluded.input_price,
+                output_price=excluded.output_price,
+                latency_ms=excluded.latency_ms,
+                uptime=excluded.uptime,
+                availability=excluded.availability,
+                updated_at=datetime('now')
+        """
+        params = [
+            entry["model_id"],
+            entry["marketplace"],
+            entry.get("marketplace_model_id"),
+            entry.get("input_price"),
+            entry.get("output_price"),
+            entry.get("latency_ms"),
+            entry.get("uptime"),
+            entry.get("availability"),
+        ]
+        await self.db.execute(sql, params)
+
+    async def save_marketplace_entries(self, entries: List[Dict]):
+        statements = []
+        for entry in entries:
+            sql = """
+                INSERT INTO model_marketplace (model_id, marketplace, marketplace_model_id,
+                                               input_price, output_price, latency_ms, uptime,
+                                               availability, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                ON CONFLICT(model_id, marketplace) DO UPDATE SET
+                    marketplace_model_id=excluded.marketplace_model_id,
+                    input_price=excluded.input_price,
+                    output_price=excluded.output_price,
+                    latency_ms=excluded.latency_ms,
+                    uptime=excluded.uptime,
+                    availability=excluded.availability,
+                    updated_at=datetime('now')
+            """
+            params = [
+                entry["model_id"],
+                entry["marketplace"],
+                entry.get("marketplace_model_id"),
+                entry.get("input_price"),
+                entry.get("output_price"),
+                entry.get("latency_ms"),
+                entry.get("uptime"),
+                entry.get("availability"),
+            ]
+            statements.append((sql, params))
+        return await self.db.execute_batch(statements)
+
+    async def get_model_marketplace(self, model_id: str) -> List[Dict]:
+        sql = "SELECT * FROM model_marketplace WHERE model_id = ? ORDER BY marketplace"
+        return await self.db.query_all(sql, [model_id])
+
+    async def get_marketplace_compare(self, model_ids: List[str]) -> Dict:
+        if not model_ids:
+            return {"models": [], "comparison": {}}
+        placeholders = ",".join(["?"] * len(model_ids))
+        sql = f"SELECT * FROM model_marketplace WHERE model_id IN ({placeholders}) ORDER BY model_id, marketplace"
+        rows = await self.db.query_all(sql, model_ids)
+
+        result = {}
+        for row in rows:
+            mid = row["model_id"]
+            if mid not in result:
+                result[mid] = []
+            result[mid].append(dict(row))
+
+        cheapest_input = None
+        cheapest_output = None
+        best_latency = None
+        best_uptime = None
+        for mid, entries in result.items():
+            for e in entries:
+                if e.get("input_price") is not None:
+                    if cheapest_input is None or e["input_price"] < cheapest_input["price"]:
+                        cheapest_input = {"model_id": mid, "marketplace": e["marketplace"], "price": e["input_price"]}
+                if e.get("output_price") is not None:
+                    if cheapest_output is None or e["output_price"] < cheapest_output["price"]:
+                        cheapest_output = {"model_id": mid, "marketplace": e["marketplace"], "price": e["output_price"]}
+                if e.get("latency_ms") is not None:
+                    if best_latency is None or e["latency_ms"] < best_latency["latency_ms"]:
+                        best_latency = {"model_id": mid, "marketplace": e["marketplace"], "latency_ms": e["latency_ms"]}
+                if e.get("uptime") is not None:
+                    if best_uptime is None or e["uptime"] > best_uptime["uptime"]:
+                        best_uptime = {"model_id": mid, "marketplace": e["marketplace"], "uptime": e["uptime"]}
+
+        return {
+            "models": result,
+            "comparison": {
+                "cheapest_input": cheapest_input,
+                "cheapest_output": cheapest_output,
+                "best_latency": best_latency,
+                "best_uptime": best_uptime,
+            }
+        }

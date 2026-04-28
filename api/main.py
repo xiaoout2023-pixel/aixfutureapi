@@ -489,7 +489,9 @@ async def root():
             "scenarios": "/api/calculator/scenarios",
             "calculator_templates": "/api/calculator/templates",
             "leaderboard_categories": "/api/leaderboard/categories",
-            "leaderboard": "/api/leaderboard/{category}"
+            "leaderboard": "/api/leaderboard/{category}",
+            "model_marketplace": "/api/models/{model_id}/marketplace",
+            "marketplace_compare": "/api/marketplace/compare?models=model1,model2"
         }
     }
 
@@ -761,5 +763,45 @@ async def get_leaderboard_detail(category: str):
             "name": meta["name"],
             "description": meta["description"],
             "group": meta["group"],
+        }
+    }
+
+# ========== Marketplace: Multi-Provider Price Comparison ==========
+
+@app.get("/api/models/{model_id}/marketplace")
+async def get_model_marketplace(model_id: str):
+    repo = get_repo()
+    model = await repo.get_model(model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail=f"Model '{model_id}' not found")
+    marketplace_data = await repo.get_model_marketplace(model_id)
+    return {
+        "code": 200,
+        "message": "success",
+        "data": {
+            "model_id": model_id,
+            "model_name": model.get("model_name"),
+            "provider": model.get("provider"),
+            "official_pricing": model.get("pricing"),
+            "marketplace": marketplace_data,
+            "marketplace_count": len(marketplace_data),
+        }
+    }
+
+@app.get("/api/marketplace/compare")
+async def marketplace_compare(models: str = Query(..., description="逗号分隔的模型ID列表")):
+    model_ids = [m.strip() for m in models.split(",") if m.strip()]
+    if not model_ids:
+        raise HTTPException(status_code=400, detail="At least one model_id required")
+    if len(model_ids) > 10:
+        raise HTTPException(status_code=400, detail="Maximum 10 models per comparison")
+    result = await get_repo().get_marketplace_compare(model_ids)
+    return {
+        "code": 200,
+        "message": "success",
+        "data": result,
+        "meta": {
+            "model_count": len(model_ids),
+            "models_compared": model_ids
         }
     }
