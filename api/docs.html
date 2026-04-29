@@ -567,14 +567,14 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
     ],
     "multimodal": [
       {
-        "key": "multimodal_t2v",
-        "name": "SuperCLUE-T2V 文生视频",
+        "key": "multimodal_image",
+        "name": "总榜",
         "group": "multimodal",
-        "source": "arena",
-        "source_date": "",
-        "total": 20,
-        "headers": [],
-        "crawl_time": "2026-04-30T05:29:42"
+        "source": "excel",
+        "source_date": "2026年3月",
+        "total": 21,
+        "headers": ["排名", "模型名称", "机构", "总分", ...],
+        "crawl_time": "2026-04-30T07:12:39"
       }
     ]
   }
@@ -587,14 +587,10 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
 <tr><td>general_base</td><td>Excel</td><td>基础模型总排行榜</td></tr>
 <tr><td>general_reasoning_task</td><td>Excel</td><td>推理任务总排行榜</td></tr>
 <tr><td>general_opensource</td><td>Excel</td><td>开源排行榜</td></tr>
-<tr><td rowspan="6">竞技场榜</td><td>multimodal_t2v</td><td>JS</td><td>SuperCLUE-T2V 文生视频</td></tr>
-<tr><td>multimodal_i2v</td><td>JS</td><td>SuperCLUE-I2V 图生视频模型</td></tr>
-<tr><td>multimodal_edit</td><td>JS</td><td>SuperCLUE-Edit 图像编辑</td></tr>
-<tr><td>multimodal_r2v</td><td>JS</td><td>SuperCLUE-R2V 参考生视频</td></tr>
-<tr><td>multimodal_image</td><td>JS</td><td>SuperCLUE-Image 文生图</td></tr>
-<tr><td>multimodal_tts</td><td>JS</td><td>SuperCLUE-TTS 语音合成</td></tr>
-<tr><td rowspan="10">多模态子榜</td><td>multimodal_image_1~5</td><td>Excel</td><td>文生图子维度（图像质量/图文一致性/汉字生成/现实复现/创作与推理）</td></tr>
-<tr><td>multimodal_edit_1~3</td><td>Excel</td><td>图像编辑子维度（通用能力/应用场景/测评列表）</td></tr>
+<tr><td rowspan="2">多模态-文生图</td><td>multimodal_image</td><td>Excel</td><td>文生图总榜</td></tr>
+<tr><td>multimodal_image_1~5</td><td>Excel</td><td>图像质量/图文一致性/汉字生成/现实复现/创作与推理</td></tr>
+<tr><td rowspan="2">多模态-图像编辑</td><td>multimodal_edit</td><td>Excel</td><td>图像编辑总榜</td></tr>
+<tr><td>multimodal_edit_1~3</td><td>Excel</td><td>通用能力/应用场景能力/测评模型列表</td></tr>
 </table>
 </div>
 
@@ -646,7 +642,7 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
   }
 }</pre>
 <h3>说明</h3>
-<p>通用榜（Excel来源）的 rows 保留原始中文列名；竞技场榜（JS来源）的 rows 使用英文字段名（rank, model_name, organization, median, ciLow, ciHigh, battles）。</p>
+<p>所有数据均来自 SuperCLUE 官网 Excel 文件，rows 保留原始中文列名。列名已清洗（去除换行符和多余空格），"模型"统一为"模型名称"，"分数"统一为"总分"。</p>
 <h3>错误码</h3>
 <table>
 <tr><th>状态码</th><th>说明</th></tr>
