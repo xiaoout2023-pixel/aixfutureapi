@@ -5,7 +5,7 @@ import logging
 import time
 import io
 from typing import List, Dict, Any, Optional
-from crawler.base import BaseCrawler
+from crawler.base import BaseCrawler, normalize_provider_name
 
 logger = logging.getLogger(__name__)
 
@@ -214,7 +214,7 @@ class SuperCLUECrawler(BaseCrawler):
     def _normalize_excel_entry(self, row: Dict, category: str, date: str) -> Optional[Dict]:
         rank = self._safe_int(row.get("排名", row.get("Rank", 0)))
         model_name = str(row.get("模型名称", row.get("模型", row.get("Model", "")))).strip()
-        org = str(row.get("机构", row.get("Organization", row.get("Org", "")))).strip()
+        org = normalize_provider_name(str(row.get("机构", row.get("Organization", row.get("Org", "")))).strip())
 
         score = 0.0
         for score_key in ["总分", "总 分", "综合得分", "Score", "score"]:
@@ -279,7 +279,7 @@ class SuperCLUECrawler(BaseCrawler):
     def _normalize_entry(self, row: Dict, category: str) -> Dict:
         rank = self._safe_int(row.get("rank", row.get("排名", 0)))
         model_name = row.get("model", row.get("模型名称", row.get("model_name", "")))
-        org = row.get("org", row.get("organization", row.get("机构", "")))
+        org = normalize_provider_name(row.get("org", row.get("organization", row.get("机构", ""))))
         date = str(row.get("date", row.get("发布日期", row.get("release_date", ""))))
 
         score = 0.0

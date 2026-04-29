@@ -307,6 +307,13 @@ class ModelRepository:
         rows = await self.db.query_all(sql, params)
         return [_parse_row(row) for row in rows]
 
+    PRIORITY_PROVIDERS = [
+        "OpenAI", "Anthropic", "Google", "深度求索", "阿里巴巴",
+        "字节跳动", "百度", "智谱AI", "月之暗面", "MiniMax",
+        "Meta", "Mistral AI", "Microsoft", "X.AI", "NVIDIA",
+        "腾讯", "小米", "快手科技", "阶跃星辰", "华为",
+    ]
+
     async def get_providers(self) -> List[Dict]:
         sql = """
             SELECT provider, COUNT(*) as model_count 
@@ -314,7 +321,16 @@ class ModelRepository:
             GROUP BY provider 
             ORDER BY model_count DESC
         """
-        return await self.db.query_all(sql)
+        rows = await self.db.query_all(sql)
+        priority = []
+        others = []
+        for row in rows:
+            if row["provider"] in self.PRIORITY_PROVIDERS:
+                priority.append(row)
+            else:
+                others.append(row)
+        priority.sort(key=lambda x: self.PRIORITY_PROVIDERS.index(x["provider"]) if x["provider"] in self.PRIORITY_PROVIDERS else 999)
+        return priority + others
 
     async def record_price(self, model_id: str, input_price: float, output_price: float):
         sql = "INSERT INTO price_history (model_id, input_price, output_price) VALUES (?, ?, ?)"
