@@ -476,6 +476,19 @@ async def get_status():
         }
     }
 
+@app.get("/api/debug/env")
+async def debug_env():
+    import os
+    return {
+        "code": 200,
+        "data": {
+            "APP_ENV": os.environ.get("APP_ENV", "NOT SET"),
+            "VERCEL_ENV": os.environ.get("VERCEL_ENV", "NOT SET"),
+            "TURSO_DATABASE_URL": os.environ.get("TURSO_DATABASE_URL", "NOT SET"),
+            "TURSO_AUTH_TOKEN_EXISTS": bool(os.environ.get("TURSO_AUTH_TOKEN")),
+        }
+    }
+
 @app.get("/docs")
 async def custom_docs():
     return Response(content=DOCS_HTML, media_type="text/html; charset=utf-8")
