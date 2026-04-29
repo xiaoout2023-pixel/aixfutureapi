@@ -1,0 +1,1 @@
+这条规则没删之前，禁止任何读写改删这个数据库的操作 libsql://ai-models-db-xiaoout.aws-us-west-2.turso.io
