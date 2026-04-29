@@ -1,0 +1,199 @@
+{
+  "key": "multimodal_i2v",
+  "name": "SuperCLUE-I2V 图生视频模型",
+  "group": "multimodal",
+  "source": "arena",
+  "crawl_time": "2026-04-30T05:31:33.317672",
+  "rows": [
+    {
+      "rank": 1,
+      "median": 1216.3,
+      "ciLow": 1180.9,
+      "ciHigh": 1253.7,
+      "battles": 1099,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2026.02
+    },
+    {
+      "rank": 2,
+      "median": 1192,
+      "ciLow": 1156.4,
+      "ciHigh": 1225.3,
+      "battles": 1213,
+      "organization": "生数科技",
+      "model_name": "Vidu",
+      "release_date": 2026.01
+    },
+    {
+      "rank": 3,
+      "median": 1191.5,
+      "ciLow": 1134.9,
+      "ciHigh": 1255.5,
+      "battles": 457,
+      "organization": "爱诗科技",
+      "model_name": "PixVerse",
+      "release_date": 2026.03
+    },
+    {
+      "rank": 4,
+      "median": 1149.8,
+      "ciLow": 1119.2,
+      "ciHigh": 1181.9,
+      "battles": 1539,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2025.09
+    },
+    {
+      "rank": 5,
+      "median": 1114.6,
+      "ciLow": 1077.8,
+      "ciHigh": 1151.2,
+      "battles": 1066,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2025.12
+    },
+    {
+      "rank": 6,
+      "median": 1106.2,
+      "ciLow": 1075.5,
+      "ciHigh": 1135.4,
+      "battles": 1512,
+      "organization": "字节跳动",
+      "model_name": "Seedance",
+      "release_date": 2025.06
+    },
+    {
+      "rank": 7,
+      "median": 1105.4,
+      "ciLow": 1072.5,
+      "ciHigh": 1137.1,
+      "battles": 1424,
+      "organization": "Google",
+      "model_name": "Veo",
+      "release_date": 2025.1
+    },
+    {
+      "rank": 8,
+      "median": 1092.9,
+      "ciLow": 1060.8,
+      "ciHigh": 1121.8,
+      "battles": 1484,
+      "organization": "MiniMax",
+      "model_name": "Hailuo-2.3",
+      "release_date": 2025.1
+    },
+    {
+      "rank": 9,
+      "median": 1070.7,
+      "ciLow": 1037.7,
+      "ciHigh": 1098.1,
+      "battles": 1473,
+      "organization": "阿里巴巴",
+      "model_name": "Wan",
+      "release_date": 2025.09
+    },
+    {
+      "rank": 10,
+      "median": 1048.3,
+      "ciLow": 1019.9,
+      "ciHigh": 1077.3,
+      "battles": 1385,
+      "organization": "生数科技",
+      "model_name": "Vidu",
+      "release_date": 2025.09
+    },
+    {
+      "rank": 11,
+      "median": 1050.6,
+      "ciLow": 1014.7,
+      "ciHigh": 1084.7,
+      "battles": 971,
+      "organization": "爱诗科技",
+      "model_name": "PixVerse",
+      "release_date": 2025.12
+    },
+    {
+      "rank": 12,
+      "median": 1027.7,
+      "ciLow": 997.4,
+      "ciHigh": 1056.7,
+      "battles": 1712,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2025.05
+    },
+    {
+      "rank": 13,
+      "median": 1008.2,
+      "ciLow": 978.3,
+      "ciHigh": 1035.4,
+      "battles": 1354,
+      "organization": "爱诗科技",
+      "model_name": "PixVerse",
+      "release_date": 2025.08
+    },
+    {
+      "rank": 14,
+      "median": 979.5,
+      "ciLow": 952.4,
+      "ciHigh": 1008.1,
+      "battles": 1378,
+      "organization": "阿里巴巴",
+      "model_name": "Wan",
+      "release_date": 2025.12
+    },
+    {
+      "rank": 15,
+      "median": 862.8,
+      "ciLow": 836.4,
+      "ciHigh": 891.3,
+      "battles": 1431,
+      "organization": "爱诗科技",
+      "model_name": "PixVerse",
+      "release_date": 2025.05
+    },
+    {
+      "rank": 16,
+      "median": 832.2,
+      "ciLow": 803.9,
+      "ciHigh": 861.1,
+      "battles": 1345,
+      "organization": "阿里巴巴",
+      "model_name": "Wan2.1-i2v-plus",
+      "release_date": 2025.02
+    },
+    {
+      "rank": 17,
+      "median": 753.2,
+      "ciLow": 723.9,
+      "ciHigh": 781.9,
+      "battles": 1240,
+      "organization": "生数科技",
+      "model_name": "Vidu",
+      "release_date": 2025.04
+    },
+    {
+      "rank": 18,
+      "median": 662.4,
+      "ciLow": 631.9,
+      "ciHigh": 694.2,
+      "battles": 1010,
+      "organization": "智谱AI",
+      "model_name": "清影-AI生视频1.0",
+      "release_date": 2024.07
+    },
+    {
+      "rank": 19,
+      "median": 653.9,
+      "ciLow": 623.5,
+      "ciHigh": 682.1,
+      "battles": 1006,
+      "organization": "MiniMax",
+      "model_name": "I2V-01-Director",
+      "release_date": 2024.02
+    }
+  ]
+}

@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 import os
 import sys
+import json
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _project_root = os.path.abspath(os.path.join(_current_dir, '..'))
@@ -673,46 +674,27 @@ async def compare_scenarios(scenario_ids: List[str]):
     
     return {"code": 200, "message": "success", "data": {"scenarios": results, "comparison": comparison}}
 
-# ========== Leaderboard: SuperCLUE Rankings ==========
+# ========== Leaderboard: SuperCLUE Rankings (JSON File Based) ==========
 
-LEADERBOARD_CATEGORY_META = {
-    "general_overall": {"name": "总排行榜", "group": "general", "description": "SuperCLUE通用榜综合能力排名"},
-    "general_reasoning": {"name": "推理模型总排行榜", "group": "general", "description": "推理类模型综合排名"},
-    "general_base": {"name": "基础模型总排行榜", "group": "general", "description": "基础/非推理模型综合排名"},
-    "general_reasoning_task": {"name": "推理任务总排行榜", "group": "general", "description": "按推理任务维度排名"},
-    "general_opensource": {"name": "开源排行榜", "group": "general", "description": "开源模型综合排名"},
-    "multimodal_vlm": {"name": "SuperCLUE-VLM 多模态视觉语言模型", "group": "multimodal", "description": "多模态视觉语言模型评测"},
-    "multimodal_image": {"name": "SuperCLUE-Image 文生图", "group": "multimodal", "description": "文生图模型竞技场排名"},
-    "multimodal_comicshorts": {"name": "SuperCLUE-ComicShorts AI漫剧大模型", "group": "multimodal", "description": "AI漫剧大模型评测"},
-    "multimodal_r2v": {"name": "SuperCLUE-R2V 参考生视频", "group": "multimodal", "description": "参考生视频模型评测"},
-    "multimodal_i2v": {"name": "SuperCLUE-I2V 图生视频模型", "group": "multimodal", "description": "图生视频模型竞技场排名"},
-    "multimodal_edit": {"name": "SuperCLUE-Edit 图像编辑", "group": "multimodal", "description": "图像编辑模型评测"},
-    "multimodal_t2v": {"name": "SuperCLUE-T2V 文生视频", "group": "multimodal", "description": "文生视频模型竞技场排名"},
-    "multimodal_world": {"name": "SuperCLUE-World 世界模型", "group": "multimodal", "description": "世界模型评测"},
-    "multimodal_voice_av": {"name": "SuperCLUE-Voice 实时音视频", "group": "multimodal", "description": "实时音视频模型评测"},
-    "multimodal_voice_chat": {"name": "SuperCLUE-Voice 实时语音交互", "group": "multimodal", "description": "实时语音交互模型评测"},
-    "multimodal_tts": {"name": "SuperCLUE-TTS 语音合成", "group": "multimodal", "description": "语音合成模型评测"},
-    "multimodal_v": {"name": "SuperCLUE-V 多模态理解", "group": "multimodal", "description": "多模态理解模型评测"},
-    "multimodal_vlr": {"name": "SuperCLUE-VLR 视觉推理", "group": "multimodal", "description": "视觉推理模型评测"},
-}
+LEADERBOARD_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "leaderboard")
+
+def _load_leaderboard_json(filename: str):
+    file_path = os.path.join(LEADERBOARD_DATA_DIR, filename)
+    if not os.path.exists(file_path):
+        return None
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 @app.get("/api/leaderboard/categories")
 async def get_leaderboard_categories():
-    db_categories = await get_repo().get_leaderboard_categories()
-    db_map = {c["category"]: c for c in db_categories}
+    index = _load_leaderboard_json("index.json")
+    if not index:
+        return {"code": 200, "message": "success", "data": {"general": [], "multimodal": []}}
 
     general = []
     multimodal = []
-    for key, meta in LEADERBOARD_CATEGORY_META.items():
-        db_info = db_map.get(key, {})
-        item = {
-            "key": key,
-            "name": meta["name"],
-            "description": meta["description"],
-            "model_count": db_info.get("model_count", 0),
-            "updated_at": db_info.get("updated_at"),
-        }
-        if meta["group"] == "general":
+    for item in index:
+        if item.get("group") == "general":
             general.append(item)
         else:
             multimodal.append(item)
@@ -729,54 +711,44 @@ async def get_leaderboard_categories():
 @app.get("/api/leaderboard/{category}")
 async def get_leaderboard(
     category: str,
-    opensource: Optional[str] = Query(None, description="开源类型筛选: open/closed"),
-    domestic: Optional[str] = Query(None, description="地域筛选: domestic/overseas"),
-    is_reasoning: Optional[bool] = Query(None, description="是否推理模型: true/false"),
     page: Optional[int] = Query(1, ge=1),
-    page_size: Optional[int] = Query(50, ge=1, le=100)
+    page_size: Optional[int] = Query(50, ge=1, le=200)
 ):
-    if category not in LEADERBOARD_CATEGORY_META:
-        raise HTTPException(status_code=404, detail=f"Category '{category}' not found. Available: {list(LEADERBOARD_CATEGORY_META.keys())}")
-
-    result = await get_repo().get_leaderboard(category, opensource, domestic, page, page_size, is_reasoning)
-    meta = LEADERBOARD_CATEGORY_META[category]
-
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "category": category,
-            "name": meta["name"],
-            "description": meta["description"],
-            "group": meta["group"],
-            "entries": result["entries"],
-            "total": result["total"],
-            "page": result["page"],
-            "page_size": result["page_size"],
-            "total_pages": result["total_pages"],
-        }
-    }
-
-@app.get("/api/leaderboard/{category}/detail")
-async def get_leaderboard_detail(category: str):
-    if category not in LEADERBOARD_CATEGORY_META:
+    data = _load_leaderboard_json(f"{category}.json")
+    if not data:
         raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
 
-    detail = await get_repo().get_leaderboard_detail(category)
-    if not detail:
-        raise HTTPException(status_code=404, detail=f"No data found for category '{category}'")
+    rows = data.get("rows", [])
+    total = len(rows)
+    start = (page - 1) * page_size
+    end = start + page_size
+    page_rows = rows[start:end]
 
-    meta = LEADERBOARD_CATEGORY_META[category]
     return {
         "code": 200,
         "message": "success",
         "data": {
-            **detail,
-            "name": meta["name"],
-            "description": meta["description"],
-            "group": meta["group"],
+            "key": data.get("key", category),
+            "name": data.get("name", ""),
+            "group": data.get("group", ""),
+            "source": data.get("source", ""),
+            "source_date": data.get("source_date", ""),
+            "headers": data.get("headers", []),
+            "crawl_time": data.get("crawl_time", ""),
+            "rows": page_rows,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
         }
     }
+
+@app.get("/api/leaderboard/{category}/all")
+async def get_leaderboard_all(category: str):
+    data = _load_leaderboard_json(f"{category}.json")
+    if not data:
+        raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
+    return {"code": 200, "message": "success", "data": data}
 
 # ========== Marketplace: Multi-Provider Price Comparison ==========
 

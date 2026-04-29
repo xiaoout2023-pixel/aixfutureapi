@@ -23,6 +23,12 @@ jobs:
           pip install openpyxl
 
       - name: Run leaderboard crawler
-        env:
-          APP_ENV: uat
         run: python crawler/run_leaderboard.py
+
+      - name: Commit and push leaderboard data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/leaderboard/
+          git diff --staged --quiet || git commit -m "chore: update leaderboard data [skip ci]"
+          git push
