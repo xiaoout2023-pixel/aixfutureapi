@@ -486,29 +486,33 @@ class ModelRepository:
 
     async def save_leaderboard_entry(self, entry: Dict):
         sql = """INSERT INTO leaderboards (category, rank, model_name, organization, score,
-                 score_details, is_opensource, is_domestic, release_date, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                 score_details, is_opensource, is_domestic, release_date, usage_type, is_reasoning, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                  ON CONFLICT(category, model_name) DO UPDATE SET
                  rank=excluded.rank, organization=excluded.organization, score=excluded.score,
                  score_details=excluded.score_details, is_opensource=excluded.is_opensource,
-                 is_domestic=excluded.is_domestic, release_date=excluded.release_date, updated_at=datetime('now')"""
+                 is_domestic=excluded.is_domestic, release_date=excluded.release_date,
+                 usage_type=excluded.usage_type, is_reasoning=excluded.is_reasoning, updated_at=datetime('now')"""
         await self.db.execute(sql, [entry["category"], entry["rank"], entry["model_name"],
             entry["organization"], entry.get("score"), entry.get("score_details"),
-            entry.get("is_opensource", 0), entry.get("is_domestic", 1), entry.get("release_date", "")])
+            entry.get("is_opensource", 0), entry.get("is_domestic", 1), entry.get("release_date", ""),
+            entry.get("usage_type", "api"), entry.get("is_reasoning", 0)])
 
     async def save_leaderboard_entries(self, entries: List[Dict]):
         statements = []
         for entry in entries:
             sql = """INSERT INTO leaderboards (category, rank, model_name, organization, score,
-                     score_details, is_opensource, is_domestic, release_date, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+                     score_details, is_opensource, is_domestic, release_date, usage_type, is_reasoning, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
                      ON CONFLICT(category, model_name) DO UPDATE SET
                      rank=excluded.rank, organization=excluded.organization, score=excluded.score,
                      score_details=excluded.score_details, is_opensource=excluded.is_opensource,
-                     is_domestic=excluded.is_domestic, release_date=excluded.release_date, updated_at=datetime('now')"""
+                     is_domestic=excluded.is_domestic, release_date=excluded.release_date,
+                     usage_type=excluded.usage_type, is_reasoning=excluded.is_reasoning, updated_at=datetime('now')"""
             statements.append((sql, [entry["category"], entry["rank"], entry["model_name"],
                 entry["organization"], entry.get("score"), entry.get("score_details"),
-                entry.get("is_opensource", 0), entry.get("is_domestic", 1), entry.get("release_date", "")]))
+                entry.get("is_opensource", 0), entry.get("is_domestic", 1), entry.get("release_date", ""),
+                entry.get("usage_type", "api"), entry.get("is_reasoning", 0)]))
         return await self.db.execute_batch(statements)
 
     async def get_leaderboard_categories(self) -> List[Dict]:
@@ -516,13 +520,15 @@ class ModelRepository:
         return await self.db.query_all(sql)
 
     async def get_leaderboard(self, category: str, opensource: Optional[str] = None,
-                               domestic: Optional[str] = None, page: int = 1, page_size: int = 50) -> Dict:
+                               domestic: Optional[str] = None, page: int = 1, page_size: int = 50,
+                               is_reasoning: Optional[bool] = None) -> Dict:
         conditions = ["category = ?"]
         params = [category]
         if opensource == "open": conditions.append("is_opensource = 1")
         elif opensource == "closed": conditions.append("is_opensource = 0")
         if domestic == "domestic": conditions.append("is_domestic = 1")
         elif domestic == "overseas": conditions.append("is_domestic = 0")
+        if is_reasoning is not None: conditions.append("is_reasoning = ?"); params.append(1 if is_reasoning else 0)
         where = " AND ".join(conditions)
         count_row = await self.db.query_one(f"SELECT COUNT(*) as total FROM leaderboards WHERE {where}", params)
         total = int(count_row.get("total", 0)) if count_row else 0
@@ -535,6 +541,9 @@ class ModelRepository:
             if isinstance(entry.get("score_details"), str):
                 try: entry["score_details"] = json.loads(entry["score_details"])
                 except: entry["score_details"] = {}
+            entry["is_opensource"] = bool(_to_int(entry.get("is_opensource")))
+            entry["is_domestic"] = bool(_to_int(entry.get("is_domestic")))
+            entry["is_reasoning"] = bool(_to_int(entry.get("is_reasoning"), 0))
             result.append(entry)
         return {"entries": result, "total": total, "page": page, "page_size": page_size,
                 "total_pages": (total + page_size - 1) // page_size if total > 0 else 0}

@@ -476,19 +476,6 @@ async def get_status():
         }
     }
 
-@app.get("/api/debug/env")
-async def debug_env():
-    import os
-    return {
-        "code": 200,
-        "data": {
-            "APP_ENV": os.environ.get("APP_ENV", "NOT SET"),
-            "VERCEL_ENV": os.environ.get("VERCEL_ENV", "NOT SET"),
-            "TURSO_DATABASE_URL": os.environ.get("TURSO_DATABASE_URL", "NOT SET"),
-            "TURSO_AUTH_TOKEN_EXISTS": bool(os.environ.get("TURSO_AUTH_TOKEN")),
-        }
-    }
-
 @app.get("/docs")
 async def custom_docs():
     return Response(content=DOCS_HTML, media_type="text/html; charset=utf-8")
@@ -744,13 +731,14 @@ async def get_leaderboard(
     category: str,
     opensource: Optional[str] = Query(None, description="开源类型筛选: open/closed"),
     domestic: Optional[str] = Query(None, description="地域筛选: domestic/overseas"),
+    is_reasoning: Optional[bool] = Query(None, description="是否推理模型: true/false"),
     page: Optional[int] = Query(1, ge=1),
     page_size: Optional[int] = Query(50, ge=1, le=100)
 ):
     if category not in LEADERBOARD_CATEGORY_META:
         raise HTTPException(status_code=404, detail=f"Category '{category}' not found. Available: {list(LEADERBOARD_CATEGORY_META.keys())}")
 
-    result = await get_repo().get_leaderboard(category, opensource, domestic, page, page_size)
+    result = await get_repo().get_leaderboard(category, opensource, domestic, page, page_size, is_reasoning)
     meta = LEADERBOARD_CATEGORY_META[category]
 
     return {

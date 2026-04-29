@@ -151,6 +151,8 @@ async def init_database():
             is_opensource INTEGER DEFAULT 0,
             is_domestic INTEGER DEFAULT 1,
             release_date TEXT,
+            usage_type TEXT DEFAULT 'api',
+            is_reasoning INTEGER DEFAULT 0,
             updated_at TEXT DEFAULT (datetime('now')),
             UNIQUE(category, model_name)
         )
