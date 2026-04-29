@@ -1,0 +1,209 @@
+{
+  "key": "multimodal_t2v",
+  "name": "SuperCLUE-T2V 文生视频",
+  "group": "multimodal",
+  "source": "arena",
+  "crawl_time": "2026-04-30T05:31:33.310805",
+  "rows": [
+    {
+      "rank": 1,
+      "median": 1321.9,
+      "ciLow": 1293.1,
+      "ciHigh": 1350.6,
+      "battles": 2005,
+      "organization": "字节跳动",
+      "model_name": "Seedance",
+      "release_date": 2026.02
+    },
+    {
+      "rank": 2,
+      "median": 1265.3,
+      "ciLow": 1233.2,
+      "ciHigh": 1296.8,
+      "battles": 1479,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2026.02
+    },
+    {
+      "rank": 3,
+      "median": 1220.1,
+      "ciLow": 1194,
+      "ciHigh": 1248.2,
+      "battles": 2283,
+      "organization": "Google",
+      "model_name": "Veo",
+      "release_date": 2025.1
+    },
+    {
+      "rank": 4,
+      "median": 1168.2,
+      "ciLow": 1092.7,
+      "ciHigh": 1257.2,
+      "battles": 192,
+      "organization": "爱诗科技",
+      "model_name": "PixVerse",
+      "release_date": 2026.03
+    },
+    {
+      "rank": 5,
+      "median": 1117.2,
+      "ciLow": 1096,
+      "ciHigh": 1138.2,
+      "battles": 3822,
+      "organization": "Google",
+      "model_name": "veo-3.0-generate-preview",
+      "release_date": 2025.05
+    },
+    {
+      "rank": 6,
+      "median": 1086.1,
+      "ciLow": 1062.1,
+      "ciHigh": 1112,
+      "battles": 2023,
+      "organization": "Luma AI",
+      "model_name": "Luma",
+      "release_date": 2025.09
+    },
+    {
+      "rank": 7,
+      "median": 1079.7,
+      "ciLow": 1052.1,
+      "ciHigh": 1107.9,
+      "battles": 1606,
+      "organization": "生数科技",
+      "model_name": "Vidu",
+      "release_date": 2026.01
+    },
+    {
+      "rank": 8,
+      "median": 1054.8,
+      "ciLow": 1033.4,
+      "ciHigh": 1077.3,
+      "battles": 3462,
+      "organization": "MiniMax",
+      "model_name": "Hailuo-02",
+      "release_date": 2025.06
+    },
+    {
+      "rank": 9,
+      "median": 1049,
+      "ciLow": 1022.6,
+      "ciHigh": 1073.7,
+      "battles": 1917,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2025.09
+    },
+    {
+      "rank": 10,
+      "median": 1044.7,
+      "ciLow": 1021.4,
+      "ciHigh": 1068.4,
+      "battles": 2480,
+      "organization": "阿里巴巴",
+      "model_name": "Wan",
+      "release_date": 2025.12
+    },
+    {
+      "rank": 11,
+      "median": 1032.9,
+      "ciLow": 1007.1,
+      "ciHigh": 1057.3,
+      "battles": 1756,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2025.12
+    },
+    {
+      "rank": 12,
+      "median": 1008.4,
+      "ciLow": 981.7,
+      "ciHigh": 1035.3,
+      "battles": 1782,
+      "organization": "阿里巴巴",
+      "model_name": "Wan",
+      "release_date": 2025.09
+    },
+    {
+      "rank": 13,
+      "median": 1004,
+      "ciLow": 978.3,
+      "ciHigh": 1029,
+      "battles": 1933,
+      "organization": "MiniMax",
+      "model_name": "Hailuo-2.3",
+      "release_date": 2025.1
+    },
+    {
+      "rank": 14,
+      "median": 1000.6,
+      "ciLow": 978.8,
+      "ciHigh": 1023.3,
+      "battles": 3198,
+      "organization": "快手科技",
+      "model_name": "可灵",
+      "release_date": 2025.05
+    },
+    {
+      "rank": 15,
+      "median": 950.7,
+      "ciLow": 923.5,
+      "ciHigh": 975.8,
+      "battles": 1746,
+      "organization": "爱诗科技",
+      "model_name": "PixVerse",
+      "release_date": 2025.08
+    },
+    {
+      "rank": 16,
+      "median": 930.4,
+      "ciLow": 900.5,
+      "ciHigh": 958.7,
+      "battles": 1432,
+      "organization": "爱诗科技",
+      "model_name": "PixVerse",
+      "release_date": 2025.12
+    },
+    {
+      "rank": 17,
+      "median": 808,
+      "ciLow": 788.7,
+      "ciHigh": 829.5,
+      "battles": 2656,
+      "organization": "阿里巴巴",
+      "model_name": "Wan2.1-T2V-14B",
+      "release_date": 2025.02
+    },
+    {
+      "rank": 18,
+      "median": 746.3,
+      "ciLow": 723.9,
+      "ciHigh": 769,
+      "battles": 2252,
+      "organization": "Pika",
+      "model_name": "pika",
+      "release_date": 2025.02
+    },
+    {
+      "rank": 19,
+      "median": 638.2,
+      "ciLow": 615.6,
+      "ciHigh": 661.5,
+      "battles": 1905,
+      "organization": "腾讯",
+      "model_name": "Hunyuan",
+      "release_date": 2024.12
+    },
+    {
+      "rank": 20,
+      "median": 490.4,
+      "ciLow": 466.5,
+      "ciHigh": 514.1,
+      "battles": 1449,
+      "organization": "潞晨科技",
+      "model_name": "Open-Sora-v2",
+      "release_date": 2025.03
+    }
+  ]
+}

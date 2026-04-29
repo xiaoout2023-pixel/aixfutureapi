@@ -29,6 +29,6 @@ jobs:
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add data/leaderboard/
+          git add data/leaderboard/ api/data/leaderboard/
           git diff --staged --quiet || git commit -m "chore: update leaderboard data [skip ci]"
           git push

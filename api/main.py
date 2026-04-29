@@ -676,7 +676,9 @@ async def compare_scenarios(scenario_ids: List[str]):
 
 # ========== Leaderboard: SuperCLUE Rankings (JSON File Based) ==========
 
-LEADERBOARD_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "leaderboard")
+LEADERBOARD_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "leaderboard")
+if not os.path.exists(LEADERBOARD_DATA_DIR):
+    LEADERBOARD_DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "leaderboard")
 
 def _load_leaderboard_json(filename: str):
     file_path = os.path.join(LEADERBOARD_DATA_DIR, filename)
