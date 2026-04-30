@@ -6,12 +6,12 @@ APP_ENV = os.environ.get("APP_ENV", "dev")
 
 DB_CONFIGS = {
     "dev": {
-        "url": os.environ.get("TURSO_DEV_URL", "libsql://ai-models-db-xiaoout.aws-us-west-2.turso.io"),
-        "token": os.environ.get("TURSO_DEV_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzcxMzk0NTcsImlkIjoiMDE5ZGM1YzMtYjEwMS03ZmI3LTk2MTktMjcxMTQ5MTc0NjMxIiwicmlkIjoiMWRiYjJmYmQtYzBiOS00MGVmLTk1OGYtODMxMDQ5OGI3MGEwIn0.ZJPCre8vUElMfKyEJITI6cdLcj9yDwjGxd49FmoXYBe5VlaVbs4LTKYffeTzbbKZGYOB8KCd-ubqrzjOs6mGCg"),
+        "url": os.environ.get("TURSO_DEV_URL", "libsql://modelstemp2-xiaoout.aws-us-west-2.turso.io"),
+        "token": os.environ.get("TURSO_DEV_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Nzc0MTI2OTcsImlkIjoiMDE5ZGQ2MGQtNDUwMS03YTA0LWEwMzYtOTM2MzJiMGI1MDJlIiwicmlkIjoiYjYxZGM1MzEtYWZhNi00ODQzLTlkMTYtNjhkYTY3ZGY1MTdjIn0.HV3mUz8GH3BJ2lOGJvCnuQF0xqiPwIwLTq5DaAtKfOLzwqL6iLNZj8XCnEA8sbaN2mzpxvRUc7rLB9quqCIbCw"),
     },
     "uat": {
-        "url": os.environ.get("TURSO_UAT_URL", "libsql://modelstemp2-xiaoout.aws-us-west-2.turso.io"),
-        "token": os.environ.get("TURSO_UAT_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3Nzc0MTI2OTcsImlkIjoiMDE5ZGQ2MGQtNDUwMS03YTA0LWEwMzYtOTM2MzJiMGI1MDJlIiwicmlkIjoiYjYxZGM1MzEtYWZhNi00ODQzLTlkMTYtNjhkYTY3ZGY1MTdjIn0.HV3mUz8GH3BJ2lOGJvCnuQF0xqiPwIwLTq5DaAtKfOLzwqL6iLNZj8XCnEA8sbaN2mzpxvRUc7rLB9quqCIbCw"),
+        "url": os.environ.get("TURSO_UAT_URL", "libsql://ai-models-db-xiaoout.aws-us-west-2.turso.io"),
+        "token": os.environ.get("TURSO_UAT_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3NzcxMzk0NTcsImlkIjoiMDE5ZGM1YzMtYjEwMS03ZmI3LTk2MTktMjcxMTQ5MTc0NjMxIiwicmlkIjoiMWRiYjJmYmQtYzBiOS00MGVmLTk1OGYtODMxMDQ5OGI3MGEwIn0.ZJPCre8vUElMfKyEJITI6cdLcj9yDwjGxd49FmoXYBe5VlaVbs4LTKYffeTzbbKZGYOB8KCd-ubqrzjOs6mGCg"),
     },
     "prod": {
         "url": os.environ.get("TURSO_PROD_URL", "libsql://aixfutureprod-xiaoout.aws-us-west-2.turso.io"),
