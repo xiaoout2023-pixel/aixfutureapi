@@ -30,3 +30,8 @@ test_*.py
 
 # Vercel build artifacts
 .vercel/
+
+# Environment variables
+.env
+.env.local
+.env.*.local

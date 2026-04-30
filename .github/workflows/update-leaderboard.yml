@@ -1,0 +1,34 @@
+name: Update Leaderboard
+
+on:
+  schedule:
+    - cron: '0 3 1,16 * *'
+  workflow_dispatch:
+
+jobs:
+  update-leaderboard:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install openpyxl
+
+      - name: Run leaderboard crawler
+        run: python crawler/run_leaderboard.py
+
+      - name: Commit and push leaderboard data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/leaderboard/ api/data/leaderboard/
+          git diff --staged --quiet || git commit -m "chore: update leaderboard data [skip ci]"
+          git push

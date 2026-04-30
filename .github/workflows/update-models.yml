@@ -29,6 +29,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run crawlers
+        env:
+          APP_ENV: uat
         run: |
           python crawler/run_all.py
 

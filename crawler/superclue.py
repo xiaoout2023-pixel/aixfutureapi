@@ -3,214 +3,179 @@ import json
 import re
 import logging
 import time
-from typing import List, Dict, Any
-from bs4 import BeautifulSoup
-from crawler.base import BaseCrawler
+import io
+from datetime import datetime
+from typing import List, Dict, Any, Optional
+from crawler.base import BaseCrawler, normalize_provider_name
 
 logger = logging.getLogger(__name__)
 
-LEADERBOARD_CATEGORIES = {
-    "general_overall": {"name": "总排行榜", "group": "general", "url": "https://www.superclueai.com/generalpage"},
-    "general_reasoning": {"name": "推理模型总排行榜", "group": "general", "url": "https://www.superclueai.com/generalpage"},
-    "general_base": {"name": "基础模型总排行榜", "group": "general", "url": "https://www.superclueai.com/generalpage"},
-    "general_reasoning_task": {"name": "推理任务总排行榜", "group": "general", "url": "https://www.superclueai.com/generalpage"},
-    "general_opensource": {"name": "开源排行榜", "group": "general", "url": "https://www.superclueai.com/generalpage"},
-    "multimodal_vlm": {"name": "SuperCLUE-VLM 多模态视觉语言模型", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_image": {"name": "SuperCLUE-Image 文生图", "group": "multimodal", "url": "https://www.superclueai.com/arena?tab=t2iboard&type=image"},
-    "multimodal_comicshorts": {"name": "SuperCLUE-ComicShorts AI漫剧大模型", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_r2v": {"name": "SuperCLUE-R2V 参考生视频", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_i2v": {"name": "SuperCLUE-I2V 图生视频模型", "group": "multimodal", "url": "https://www.superclueai.com/arena?tab=t2iboard&type=i2v"},
-    "multimodal_edit": {"name": "SuperCLUE-Edit 图像编辑", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_t2v": {"name": "SuperCLUE-T2V 文生视频", "group": "multimodal", "url": "https://www.superclueai.com/arena?tab=t2iboard&type=video"},
-    "multimodal_world": {"name": "SuperCLUE-World 世界模型", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_voice_av": {"name": "SuperCLUE-Voice 实时音视频", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_voice_chat": {"name": "SuperCLUE-Voice 实时语音交互", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_tts": {"name": "SuperCLUE-TTS 语音合成", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_v": {"name": "SuperCLUE-V 多模态理解", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
-    "multimodal_vlr": {"name": "SuperCLUE-VLR 视觉推理", "group": "multimodal", "url": "https://www.superclueai.com/multimodalpage"},
+BASE_DIR = "data/leaderboard"
+
+EXCEL_SHEET_MAPPING = {
+    "总排行榜": {"key": "general_overall", "name": "总排行榜", "group": "general"},
+    "推理模型总排行榜": {"key": "general_reasoning", "name": "推理模型总排行榜", "group": "general"},
+    "基础模型总排行榜": {"key": "general_base", "name": "基础模型总排行榜", "group": "general"},
+    "推理任务总排行榜": {"key": "general_reasoning_task", "name": "推理任务总排行榜", "group": "general"},
+    "开源排行榜": {"key": "general_opensource", "name": "开源排行榜", "group": "general"},
+    "小模型10B榜": {"key": "general_small_10b", "name": "小模型10B榜", "group": "general"},
+    "小模型5B榜": {"key": "general_small_5b", "name": "小模型5B榜", "group": "general"},
+}
+
+EXCEL_DATA_PATHS = {
+    "general": "/data/generalboard/",
+    "multimodal_vlm": "/data/multimodal_list/VLM/",
+    "multimodal_image": "/data/multimodal_list/Image/",
+    "multimodal_t2v": "/data/multimodal_list/T2V/",
+    "multimodal_i2v": "/data/multimodal_list/I2V/",
+    "multimodal_edit": "/data/multimodal_list/Edit/",
+    "multimodal_r2v": "/data/multimodal_list/R2V/",
+    "multimodal_comicshorts": "/data/multimodal_list/comic/",
+    "multimodal_world": "/data/multimodal_list/World/",
+    "multimodal_voice_av": "/data/multimodal_list/VoiceAV/",
+    "multimodal_voice_chat": "/data/multimodal_list/VoiceChat/",
+    "multimodal_tts": "/data/multimodal_list/TTS/",
+    "multimodal_v": "/data/multimodal_list/V/",
+    "multimodal_vlr": "/data/multimodal_list/VLR/",
+}
+
+AVAILABLE_DATES = [
+    "2026年3月", "2025年度测评", "2025年11月", "2025年9月",
+    "2025年7月", "2025年5月", "2025年3月", "2024年12月",
+    "2024年10月", "2024年8月", "2024年6月", "2024年4月",
+    "2024年2月", "2023年12月", "2023年11月", "2023年10月", "2023年9月",
+]
+
+COLUMN_NAME_ALIASES = {
+    "模型": "模型名称",
+    "分数": "总分",
+    "机构": "机构",
 }
 
 
-class SuperCLUECrawler(BaseCrawler):
+def clean_column_name(name: str) -> str:
+    name = name.replace("\n", "").replace("\r", "").replace("\t", "")
+    name = re.sub(r"\s+", "", name)
+    name = name.strip()
+    if name in COLUMN_NAME_ALIASES:
+        name = COLUMN_NAME_ALIASES[name]
+    return name
+
+
+class SuperCLUELeaderboardCrawler(BaseCrawler):
     def __init__(self):
         super().__init__(provider="superclue", base_url="https://www.superclueai.com")
 
-    async def fetch_page_with_render(self, url: str) -> str:
+    async def _fetch(self, url: str, binary: bool = False) -> Any:
         for attempt in range(self.max_retries):
             try:
                 async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
                     response = await client.get(url, headers=self.headers)
                     response.raise_for_status()
-                    logger.info(f"Fetched {url}, length: {len(response.text)}")
+                    if binary:
+                        return response.content
                     return response.text
             except Exception as e:
                 logger.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
                 if attempt == self.max_retries - 1:
                     raise
                 time.sleep(2 ** attempt)
-        return ""
+        return b"" if binary else ""
 
-    def parse_html_table(self, html: str) -> List[Dict]:
-        soup = BeautifulSoup(html, "html.parser")
-        tables = soup.find_all("table")
-        results = []
+    async def crawl_excel_boards(self) -> List[Dict]:
+        logger.info("Crawling Excel-based boards...")
+        all_boards = []
+        date = AVAILABLE_DATES[0]
+        logger.info(f"Using date: {date}")
 
-        for table in tables:
-            headers = []
-            header_row = table.find("tr")
-            if header_row:
-                ths = header_row.find_all(["th", "td"])
-                headers = [th.get_text(strip=True) for th in ths]
-
-            for row in table.find_all("tr")[1:]:
-                cells = row.find_all(["td", "th"])
-                if not cells:
+        for board_key, data_path in EXCEL_DATA_PATHS.items():
+            xlsx_url = self.base_url + data_path + date + ".xlsx"
+            try:
+                content = await self._fetch(xlsx_url, binary=True)
+                if not content or len(content) < 100:
+                    logger.warning(f"  {board_key}: empty or too small response")
                     continue
-                row_data = {}
-                for i, cell in enumerate(cells):
-                    key = headers[i] if i < len(headers) else f"col_{i}"
-                    row_data[key] = cell.get_text(strip=True)
-                if row_data:
-                    results.append(row_data)
 
+                boards = self._parse_excel(content, board_key, date)
+                all_boards.extend(boards)
+                logger.info(f"  {board_key}: {sum(len(b['rows']) for b in boards)} entries from Excel")
+
+            except Exception as e:
+                logger.warning(f"  {board_key}: error - {e}")
+
+        return all_boards
+
+    def _parse_excel(self, content: bytes, default_key: str, date: str) -> List[Dict]:
+        try:
+            import openpyxl
+        except ImportError:
+            logger.error("openpyxl not installed. Run: pip install openpyxl")
+            return []
+
+        wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        results = []
+        sheet_index = 0
+
+        for sheet_name in wb.sheetnames:
+            sheet_meta = EXCEL_SHEET_MAPPING.get(sheet_name, None)
+            ws = wb[sheet_name]
+
+            rows_data = list(ws.iter_rows(values_only=True))
+            if len(rows_data) < 2:
+                continue
+
+            raw_headers = [str(h).strip() if h else "" for h in rows_data[0]]
+            headers = [clean_column_name(h) for h in raw_headers]
+            headers = [h for h in headers if h]
+
+            entries = []
+            for row_data in rows_data[1:]:
+                if not row_data or not row_data[0]:
+                    continue
+                entry = {}
+                col_idx = 0
+                for i, val in enumerate(row_data):
+                    if i < len(raw_headers):
+                        col_name = clean_column_name(raw_headers[i])
+                        if col_name:
+                            entry[col_name] = val
+                if "机构" in entry:
+                    entry["机构"] = normalize_provider_name(str(entry["机构"]))
+                if entry:
+                    entries.append(entry)
+
+            if sheet_meta:
+                key = sheet_meta["key"]
+                name = sheet_meta["name"]
+                group = sheet_meta["group"]
+            else:
+                key = f"{default_key}_{sheet_index}" if sheet_index > 0 else default_key
+                name = sheet_name
+                group = "multimodal"
+
+            board_data = {
+                "key": key,
+                "name": name,
+                "group": group,
+                "source": "excel",
+                "source_date": date,
+                "source_file": f"/data/{default_key}/{date}.xlsx",
+                "sheet_name": sheet_name,
+                "headers": headers,
+                "crawl_time": datetime.now().isoformat(),
+                "rows": entries,
+            }
+            results.append(board_data)
+            sheet_index += 1
+
+        wb.close()
         return results
 
-    def parse_arena_table(self, html: str) -> List[Dict]:
-        soup = BeautifulSoup(html, "html.parser")
-        tables = soup.find_all("table")
-        results = []
+    async def crawl_all(self) -> List[Dict]:
+        logger.info("Starting SuperCLUE leaderboard crawl (Excel only)...")
 
-        for table in tables:
-            headers = []
-            header_row = table.find("tr")
-            if header_row:
-                ths = header_row.find_all(["th", "td"])
-                headers = [th.get_text(strip=True) for th in ths]
+        excel_boards = await self.crawl_excel_boards()
+        logger.info(f"Excel boards: {len(excel_boards)}")
 
-            for row in table.find_all("tr")[1:]:
-                cells = row.find_all(["td", "th"])
-                if not cells:
-                    continue
-                row_data = {}
-                for i, cell in enumerate(cells):
-                    key = headers[i] if i < len(headers) else f"col_{i}"
-                    row_data[key] = cell.get_text(strip=True)
-                if row_data:
-                    results.append(row_data)
-
-        return results
-
-    async def crawl_general_leaderboard(self) -> List[Dict]:
-        logger.info("Crawling general leaderboard from SuperCLUE...")
-        all_entries = []
-
-        try:
-            html = await self.fetch_page_with_render("https://www.superclueai.com/generalpage")
-            table_data = self.parse_html_table(html)
-
-            if table_data:
-                for row in table_data:
-                    rank = self._safe_int(row.get("排名", row.get("rank", 0)))
-                    model_name = row.get("模型名称", row.get("model_name", ""))
-                    org = row.get("机构", row.get("organization", ""))
-                    score = self._safe_float(row.get("总分", row.get("score", row.get("总得分", 0))))
-                    open_source = row.get("开/闭源", row.get("opensource", ""))
-                    is_opensource = 1 if "开源" in str(open_source) else 0
-
-                    if model_name:
-                        all_entries.append({
-                            "category": "general_overall",
-                            "rank": rank,
-                            "model_name": model_name,
-                            "organization": org,
-                            "score": score,
-                            "score_details": json.dumps(row, ensure_ascii=False),
-                            "is_opensource": is_opensource,
-                            "is_domestic": 1 if self._is_domestic_org(org) else 0,
-                            "release_date": row.get("发布时间", ""),
-                        })
-        except Exception as e:
-            logger.error(f"Error crawling general leaderboard: {e}")
-
-        return all_entries
-
-    async def crawl_arena_leaderboard(self, arena_type: str = "video") -> List[Dict]:
-        logger.info(f"Crawling arena leaderboard ({arena_type}) from SuperCLUE...")
-        all_entries = []
-
-        try:
-            url = f"https://www.superclueai.com/arena?tab=t2iboard&type={arena_type}"
-            html = await self.fetch_page_with_render(url)
-            table_data = self.parse_arena_table(html)
-
-            if table_data:
-                for row in table_data:
-                    rank = self._safe_int(row.get("排名", row.get("rank", 0)))
-                    model_name = row.get("模型名称", row.get("model_name", ""))
-                    org = row.get("机构", row.get("organization", ""))
-                    score = self._safe_float(row.get("排位分", row.get("score", row.get("rating", 0))))
-                    release_date = row.get("发布时间", "")
-
-                    if model_name:
-                        category_map = {
-                            "video": "multimodal_t2v",
-                            "image": "multimodal_image",
-                            "i2v": "multimodal_i2v",
-                        }
-                        all_entries.append({
-                            "category": category_map.get(arena_type, f"multimodal_{arena_type}"),
-                            "rank": rank,
-                            "model_name": model_name,
-                            "organization": org,
-                            "score": score,
-                            "score_details": json.dumps(row, ensure_ascii=False),
-                            "is_opensource": 0,
-                            "is_domestic": 1 if self._is_domestic_org(org) else 0,
-                            "release_date": release_date,
-                        })
-        except Exception as e:
-            logger.error(f"Error crawling arena leaderboard ({arena_type}): {e}")
-
-        return all_entries
-
-    async def crawl(self) -> List[Dict[str, Any]]:
-        all_entries = []
-
-        general_entries = await self.crawl_general_leaderboard()
-        all_entries.extend(general_entries)
-
-        for arena_type in ["video", "image", "i2v"]:
-            arena_entries = await self.crawl_arena_leaderboard(arena_type)
-            all_entries.extend(arena_entries)
-
-        logger.info(f"Total leaderboard entries collected: {len(all_entries)}")
-        return all_entries
-
-    @staticmethod
-    def _safe_int(val) -> int:
-        try:
-            return int(float(str(val).replace(",", "")))
-        except (ValueError, TypeError):
-            return 0
-
-    @staticmethod
-    def _safe_float(val) -> float:
-        try:
-            return float(str(val).replace(",", "").replace("+", "").split("-")[0].strip())
-        except (ValueError, TypeError):
-            return 0.0
-
-    @staticmethod
-    def _is_domestic_org(org: str) -> bool:
-        domestic_keywords = [
-            "字节跳动", "百度", "阿里", "腾讯", "智谱", "商汤", "快手", "讯飞",
-            "深度求索", "DeepSeek", "零一万物", "百川", "MiniMax", "月之暗面",
-            "生数", "潞晨", "爱诗", "小米", "华为", "Baidu", "Alibaba",
-            "Tencent", "Zhipu", "SenseTime", "ByteDance", "Kuaishou",
-            "iFlytek", "01.AI", "Baichuan", "Moonshot"
-        ]
-        org_lower = org.lower()
-        for kw in domestic_keywords:
-            if kw.lower() in org_lower:
-                return True
-        return False
+        logger.info(f"Total boards: {len(excel_boards)}")
+        return excel_boards

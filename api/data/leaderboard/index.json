@@ -1,0 +1,321 @@
+[
+  {
+    "key": "general_overall",
+    "name": "总排行榜",
+    "group": "general",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 24,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "开/闭源",
+      "总分",
+      "数学推理",
+      "幻觉控制",
+      "科学推理",
+      "精确指令遵循",
+      "代码生成",
+      "智能体(任务规划)",
+      "属地",
+      "使用方式",
+      "是否推理",
+      "发布日期"
+    ],
+    "crawl_time": "2026-04-30T07:12:06.601346"
+  },
+  {
+    "key": "general_reasoning",
+    "name": "推理模型总排行榜",
+    "group": "general",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 22,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "开/闭源",
+      "总分",
+      "数学推理",
+      "幻觉控制",
+      "科学推理",
+      "精确指令遵循",
+      "代码生成",
+      "智能体(任务规划)",
+      "属地",
+      "使用方式",
+      "发布日期"
+    ],
+    "crawl_time": "2026-04-30T07:12:06.603368"
+  },
+  {
+    "key": "general_base",
+    "name": "基础模型总排行榜",
+    "group": "general",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 2,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "开/闭源",
+      "总分",
+      "数学推理",
+      "幻觉控制",
+      "科学推理",
+      "精确指令遵循",
+      "代码生成",
+      "智能体(任务规划)",
+      "属地",
+      "使用方式",
+      "发布日期"
+    ],
+    "crawl_time": "2026-04-30T07:12:06.603911"
+  },
+  {
+    "key": "general_reasoning_task",
+    "name": "推理任务总排行榜",
+    "group": "general",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 24,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "开/闭源",
+      "总分",
+      "数学推理",
+      "科学推理",
+      "代码生成",
+      "属地",
+      "使用方式",
+      "是否推理",
+      "发布日期"
+    ],
+    "crawl_time": "2026-04-30T07:12:06.605751"
+  },
+  {
+    "key": "general_opensource",
+    "name": "开源排行榜",
+    "group": "general",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 14,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "参数量(B)",
+      "激活参数量(B)",
+      "总分",
+      "数学推理",
+      "幻觉控制",
+      "科学推理",
+      "精确指令遵循",
+      "代码生成",
+      "智能体(任务规划)",
+      "属地",
+      "使用方式",
+      "是否推理",
+      "发布日期"
+    ],
+    "crawl_time": "2026-04-30T07:12:06.607283"
+  },
+  {
+    "key": "multimodal_image",
+    "name": "总榜",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 21,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "图像质量",
+      "图文一致性",
+      "汉字生成",
+      "现实复现",
+      "创作与推理",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:12.297683"
+  },
+  {
+    "key": "multimodal_image_1",
+    "name": "图像质量",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 21,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "构图美感",
+      "真实感",
+      "细节处理",
+      "色彩表现力",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:12.302464"
+  },
+  {
+    "key": "multimodal_image_2",
+    "name": "图文一致性",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 21,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "主体匹配",
+      "数形结合",
+      "数量关系",
+      "空间关系",
+      "语境还原",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:12.307593"
+  },
+  {
+    "key": "multimodal_image_3",
+    "name": "汉字生成",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 21,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "图文贴合度",
+      "字形美观度",
+      "文字准确度",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:12.311773"
+  },
+  {
+    "key": "multimodal_image_4",
+    "name": "现实复现",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 21,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "中华文化元素",
+      "实体场景复刻",
+      "角色IP还原",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:12.316016"
+  },
+  {
+    "key": "multimodal_image_5",
+    "name": "创作与推理",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 21,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "世界知识推理",
+      "意象表达",
+      "手绘艺术",
+      "时空融合",
+      "海报设计",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:12.321410"
+  },
+  {
+    "key": "multimodal_edit",
+    "name": "总榜",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 19,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "通用能力",
+      "场景应用",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:20.582436"
+  },
+  {
+    "key": "multimodal_edit_1",
+    "name": "通用能力",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 19,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "对象编辑",
+      "文本设计",
+      "场景构建",
+      "图像质量",
+      "复杂视觉推理",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:20.583759"
+  },
+  {
+    "key": "multimodal_edit_2",
+    "name": "应用场景能力",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 19,
+    "headers": [
+      "排名",
+      "模型名称",
+      "机构",
+      "总分",
+      "创作能力",
+      "工程能力",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:20.584946"
+  },
+  {
+    "key": "multimodal_edit_3",
+    "name": "测评模型列表",
+    "group": "multimodal",
+    "source": "excel",
+    "source_date": "2026年3月",
+    "total": 19,
+    "headers": [
+      "模型名称",
+      "机构",
+      "属地",
+      "使用方式"
+    ],
+    "crawl_time": "2026-04-30T07:12:20.585664"
+  }
+]

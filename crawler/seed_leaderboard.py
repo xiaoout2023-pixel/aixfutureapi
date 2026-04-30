@@ -193,6 +193,7 @@ async def seed_leaderboard_data():
     for category, entries in SEED_DATA.items():
         for entry in entries:
             try:
+                is_reasoning_categories = {"general_reasoning", "general_reasoning_task"}
                 await repo.save_leaderboard_entry({
                     "category": category,
                     "rank": entry["rank"],
@@ -203,6 +204,8 @@ async def seed_leaderboard_data():
                     "is_opensource": entry.get("is_opensource", 0),
                     "is_domestic": entry.get("is_domestic", 1),
                     "release_date": entry.get("release_date", ""),
+                    "usage_type": entry.get("usage_type", "api"),
+                    "is_reasoning": entry.get("is_reasoning", 1 if category in is_reasoning_categories else 0),
                 })
                 total += 1
             except Exception as e:

@@ -16,6 +16,7 @@ from crawler.mistral import MistralCrawler
 from crawler.baidu import BaiduCrawler
 from crawler.zhipu import ZhipuCrawler
 from crawler.domestic import DeepSeekCrawler, MoonshotCrawler, MiniMaxCrawler
+from crawler.base import normalize_provider_name
 from db.turso import TursoDB
 from db.repository import ModelRepository
 
@@ -81,6 +82,10 @@ async def run_all_crawlers():
         marketplace_entries = []
 
     logger.info(f"Total models to save: {len(all_models)}")
+
+    for model in all_models:
+        if "provider" in model:
+            model["provider"] = normalize_provider_name(model["provider"])
 
     try:
         db = TursoDB()

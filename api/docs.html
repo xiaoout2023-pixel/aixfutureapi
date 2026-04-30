@@ -79,7 +79,7 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 <div class="nav-group">
 <a href="#lb-categories"><span class="method get">GET</span> /api/leaderboard/categories</a>
 <a href="#lb-data"><span class="method get">GET</span> /api/leaderboard/:category</a>
-<a href="#lb-detail"><span class="method get">GET</span> /api/leaderboard/:category/detail</a>
+<a href="#lb-detail"><span class="method get">GET</span> /api/leaderboard/:category/all</a>
 </div>
 <h3>多供应商价格对比</h3>
 <div class="nav-group">
@@ -145,12 +145,13 @@ source: 来源对象
   model_page: 模型页面URL
   api_docs: API文档URL
   pricing_page: 定价页面URL
-  last_updated: 最后更新日期
   source_type: 数据来源类型（official / marketplace / open_source）
   region_restriction: 是否有地区限制（bool）
   enterprise_only: 是否仅企业可用（bool）
   openai_compatible: 是否兼容OpenAI API（bool）
-  sdk_support: 是否提供SDK（bool）</pre>
+  sdk_support: 是否提供SDK（bool）
+
+last_updated: 最后更新日期（YYYY-MM-DD）</pre>
 </div>
 
 <div class="endpoint" id="list-models">
@@ -448,7 +449,7 @@ source: 来源对象
         "model_id": "gpt-4o",
         "model_name": "GPT-4o",
         "provider": "openai",
-        "pricing": {"input_price_per_1m_tokens": 2.5, "output_price_per_1m_tokens": 10},
+        "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 10},
         "tags": ["vision", "coding", "multimodal"]
       }
     ],
@@ -544,7 +545,7 @@ source: 来源对象
 
 <div class="endpoint" id="lb-categories">
 <h2><span class="method get">GET</span> /api/leaderboard/categories</h2>
-<p class="desc">获取排行榜分类列表，分为通用榜和多模态榜两大类。</p>
+<p class="desc">获取排行榜分类列表，数据来源于 SuperCLUE 官网，分为通用榜和多模态榜两大类。</p>
 <h3>请求参数</h3>
 <p>无</p>
 <h3>返回结果</h3>
@@ -556,83 +557,92 @@ source: 来源对象
       {
         "key": "general_overall",
         "name": "总排行榜",
-        "description": "SuperCLUE通用榜综合能力排名",
-        "model_count": 15,
-        "updated_at": "2026-04-28T16:20:46"
+        "group": "general",
+        "source": "excel",
+        "source_date": "2026年3月",
+        "total": 24,
+        "headers": ["排名", "模型名称", "机构", "开/闭源", "总分", ...],
+        "crawl_time": "2026-04-30T05:31:37"
       }
     ],
     "multimodal": [
       {
-        "key": "multimodal_vlm",
-        "name": "SuperCLUE-VLM 多模态视觉语言模型",
-        "description": "多模态视觉语言模型评测",
-        "model_count": 8,
-        "updated_at": "2026-04-28T16:22:58"
+        "key": "multimodal_image",
+        "name": "总榜",
+        "group": "multimodal",
+        "source": "excel",
+        "source_date": "2026年3月",
+        "total": 21,
+        "headers": ["排名", "模型名称", "机构", "总分", ...],
+        "crawl_time": "2026-04-30T07:12:39"
       }
     ]
   }
 }</pre>
-<h3>排行榜分类 key 列表</h3>
+<h3>分类 key 列表</h3>
 <table>
-<tr><th>分类</th><th>key</th><th>说明</th></tr>
-<tr><td rowspan="5">通用榜</td><td>general_overall</td><td>总排行榜</td></tr>
-<tr><td>general_reasoning</td><td>推理模型总排行榜</td></tr>
-<tr><td>general_base</td><td>基础模型总排行榜</td></tr>
-<tr><td>general_reasoning_task</td><td>推理任务总排行榜</td></tr>
-<tr><td>general_opensource</td><td>开源排行榜</td></tr>
-<tr><td rowspan="8">多模态榜</td><td>multimodal_vlm</td><td>SuperCLUE-VLM 多模态视觉语言模型</td></tr>
-<tr><td>multimodal_image</td><td>SuperCLUE-Image 文生图</td></tr>
-<tr><td>multimodal_t2v</td><td>SuperCLUE-T2V 文生视频</td></tr>
-<tr><td>multimodal_i2v</td><td>SuperCLUE-I2V 图生视频模型</td></tr>
-<tr><td>multimodal_comicshorts</td><td>SuperCLUE-ComicShorts AI漫剧大模型</td></tr>
-<tr><td>multimodal_r2v</td><td>SuperCLUE-R2V 参考生视频</td></tr>
-<tr><td>multimodal_edit</td><td>SuperCLUE-Edit 图像编辑</td></tr>
-<tr><td>multimodal_vlr</td><td>SuperCLUE-VLR 视觉推理</td></tr>
+<tr><th>分类</th><th>key</th><th>数据来源</th><th>说明</th></tr>
+<tr><td rowspan="5">通用榜</td><td>general_overall</td><td>Excel</td><td>总排行榜</td></tr>
+<tr><td>general_reasoning</td><td>Excel</td><td>推理模型总排行榜</td></tr>
+<tr><td>general_base</td><td>Excel</td><td>基础模型总排行榜</td></tr>
+<tr><td>general_reasoning_task</td><td>Excel</td><td>推理任务总排行榜</td></tr>
+<tr><td>general_opensource</td><td>Excel</td><td>开源排行榜</td></tr>
+<tr><td rowspan="2">多模态-文生图</td><td>multimodal_image</td><td>Excel</td><td>文生图总榜</td></tr>
+<tr><td>multimodal_image_1~5</td><td>Excel</td><td>图像质量/图文一致性/汉字生成/现实复现/创作与推理</td></tr>
+<tr><td rowspan="2">多模态-图像编辑</td><td>multimodal_edit</td><td>Excel</td><td>图像编辑总榜</td></tr>
+<tr><td>multimodal_edit_1~3</td><td>Excel</td><td>通用能力/应用场景能力/测评模型列表</td></tr>
 </table>
 </div>
 
 <div class="endpoint" id="lb-data">
 <h2><span class="method get">GET</span> /api/leaderboard/:category</h2>
-<p class="desc">获取指定排行榜的数据，支持按开源类型、地域筛选和分页。</p>
+<p class="desc">获取指定排行榜的数据，支持分页。数据原封不动来自 SuperCLUE 官网，保留原始列名。</p>
 <h3>请求参数</h3>
 <table>
 <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
 <tr><td>category</td><td>string</td><td>是</td><td>排行榜分类 key（路径参数）</td></tr>
-<tr><td>opensource</td><td>string</td><td>否</td><td>开源类型筛选: open(开源) / closed(闭源)</td></tr>
-<tr><td>domestic</td><td>string</td><td>否</td><td>地域筛选: domestic(国内) / overseas(海外)</td></tr>
 <tr><td>page</td><td>int</td><td>否</td><td>页码，默认1</td></tr>
-<tr><td>page_size</td><td>int</td><td>否</td><td>每页条数，默认50，最大100</td></tr>
+<tr><td>page_size</td><td>int</td><td>否</td><td>每页条数，默认50，最大200</td></tr>
 </table>
 <h3>返回结果</h3>
 <pre>{
   "code": 200,
   "message": "success",
   "data": {
-    "category": "general_overall",
+    "key": "general_overall",
     "name": "总排行榜",
-    "description": "SuperCLUE通用榜综合能力排名",
     "group": "general",
-    "entries": [
+    "source": "excel",
+    "source_date": "2026年3月",
+    "headers": ["排名", "模型名称", "机构", "开/闭源", "总分", "数学推理", ...],
+    "crawl_time": "2026-04-30T05:31:37",
+    "rows": [
       {
-        "id": 1,
-        "category": "general_overall",
-        "rank": 1,
-        "model_name": "Claude-Opus-4.6",
-        "organization": "Anthropic",
-        "score": 76.82,
-        "score_details": {"数学推理": 78.5, "科学推理": 80.2, "代码生成": 82.1},
-        "is_opensource": 0,
-        "is_domestic": 0,
-        "release_date": "",
-        "updated_at": "2026-04-28T16:20:02"
+        "排名": "-",
+        "模型名称": "Claude-Opus-4.6(max)",
+        "机构": "Anthropic",
+        "开/闭源": "闭源",
+        "总分": 77.02,
+        "数学推理": 85.71,
+        "幻觉控制": 82.95,
+        "科学推理": 85.37,
+        "精确指令遵循": 47.57,
+        "代码生成": 71.15,
+        "智能体(任务规划)": 89.35,
+        "属地": "海外",
+        "使用方式": "API",
+        "是否推理": "是",
+        "发布日期": "2026.3.30"
       }
     ],
-    "total": 15,
+    "total": 24,
     "page": 1,
     "page_size": 50,
     "total_pages": 1
   }
 }</pre>
+<h3>说明</h3>
+<p>所有数据均来自 SuperCLUE 官网 Excel 文件，rows 保留原始中文列名。列名已清洗（去除换行符和多余空格），"模型"统一为"模型名称"，"分数"统一为"总分"。</p>
 <h3>错误码</h3>
 <table>
 <tr><th>状态码</th><th>说明</th></tr>
@@ -641,8 +651,8 @@ source: 来源对象
 </div>
 
 <div class="endpoint" id="lb-detail">
-<h2><span class="method get">GET</span> /api/leaderboard/:category/detail</h2>
-<p class="desc">获取排行榜详情信息，包括模型数量和更新时间。</p>
+<h2><span class="method get">GET</span> /api/leaderboard/:category/all</h2>
+<p class="desc">获取指定排行榜的全量数据（不分页），包含元信息和所有行数据。</p>
 <h3>请求参数</h3>
 <table>
 <tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
@@ -653,12 +663,14 @@ source: 来源对象
   "code": 200,
   "message": "success",
   "data": {
-    "category": "general_overall",
+    "key": "general_overall",
     "name": "总排行榜",
-    "description": "SuperCLUE通用榜综合能力排名",
     "group": "general",
-    "total_models": 15,
-    "updated_at": "2026-04-28T16:20:02"
+    "source": "excel",
+    "source_date": "2026年3月",
+    "headers": ["排名", "模型名称", ...],
+    "crawl_time": "2026-04-30T05:31:37",
+    "rows": [ ... 全部数据 ... ]
   }
 }</pre>
 </div>

@@ -11,6 +11,93 @@ logging.basicConfig(
 
 logger = logging.getLogger(__name__)
 
+PROVIDER_NAME_MAPPING = {
+    "anthropic": "Anthropic",
+    "~anthropic": "Anthropic",
+    "openai": "OpenAI",
+    "~openai": "OpenAI",
+    "google": "Google",
+    "~google": "Google",
+    "deepseek": "深度求索",
+    "deepseek-ai": "深度求索",
+    "bytedance": "字节跳动",
+    "bytedance-seed": "字节跳动",
+    "kwaipilot": "快手科技",
+    "kuaishou": "快手科技",
+    "moonshot": "月之暗面",
+    "moonshotai": "月之暗面",
+    "~moonshotai": "月之暗面",
+    "zhipu": "智谱AI",
+    "zhipu-ai": "智谱AI",
+    "aliyun": "阿里巴巴",
+    "alibaba": "阿里巴巴",
+    "baidu": "百度",
+    "tencent": "腾讯",
+    "xiaomi": "小米",
+    "minimax": "MiniMax",
+    "meta": "Meta",
+    "meta-llama": "Meta",
+    "mistral": "Mistral AI",
+    "mistralai": "Mistral AI",
+    "xai": "X.AI",
+    "microsoft": "Microsoft",
+    "nvidia": "NVIDIA",
+    "amazon": "Amazon",
+    "ibm-granite": "IBM",
+    "ibm": "IBM",
+    "cohere": "Cohere",
+    "inflection": "Inflection AI",
+    "stepfun": "阶跃星辰",
+    "inception": "Inception",
+    "allenai": "Allen AI",
+    "arcee-ai": "Arcee AI",
+    "upstage": "Upstage",
+    "writer": "Writer",
+    "perplexity": "Perplexity",
+    "rekaai": "Reka AI",
+    "liquid": "Liquid AI",
+    "ai21": "AI21 Labs",
+    "deepmind": "Google",
+    "商汤": "商汤科技",
+    "sensetime": "商汤科技",
+    "小米集团": "小米",
+    "智谱": "智谱AI",
+    "luma": "Luma AI",
+    "elevenlabs": "ElevenLabs",
+    "11labs": "ElevenLabs",
+    "stability ai": "Stability AI",
+    "stabilityai": "Stability AI",
+    "black forest labs": "Black Forest Labs",
+    "recraft": "Recraft",
+    "pika": "Pika",
+    "科大讯飞": "科大讯飞",
+    "iflytek": "科大讯飞",
+    "潞晨": "潞晨科技",
+    "潞晨科技": "潞晨科技",
+    "生数": "生数科技",
+    "生数科技": "生数科技",
+    "爱诗": "爱诗科技",
+    "爱诗科技": "爱诗科技",
+    "智象未来": "智象未来",
+    "稀宇科技": "稀宇科技",
+    "美团": "美团",
+    "阶跃星辰": "阶跃星辰",
+    "华为": "华为",
+    "huawei": "华为",
+    "字节跳动/火山引擎": "字节跳动",
+    "火山引擎": "字节跳动",
+}
+
+
+def normalize_provider_name(name: str) -> str:
+    if not name:
+        return name
+    key = name.strip().lower()
+    if key in PROVIDER_NAME_MAPPING:
+        return PROVIDER_NAME_MAPPING[key]
+    return name.strip()
+
+
 class BaseCrawler:
     def __init__(self, provider: str, base_url: str = ""):
         self.provider = provider
