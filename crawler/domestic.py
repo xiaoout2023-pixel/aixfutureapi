@@ -2,71 +2,79 @@ import json
 import logging
 import time
 from typing import List, Dict, Any
-from crawler.base import BaseCrawler
+from crawler.base import BaseCrawler, fetch_openrouter_prices
 
 logger = logging.getLogger(__name__)
 
-CNY_TO_USD = 7.25
+DEEPSEEK_MODELS_META = {
+    "deepseek-chat": {"model_name": "DeepSeek V3", "context_length": 65536,
+                      "reasoning_level": "high", "vision": False, "code": True, "reasoning": False, "tool_use": True},
+    "deepseek-reasoner": {"model_name": "DeepSeek R1", "context_length": 65536,
+                          "reasoning_level": "high", "vision": False, "code": True, "reasoning": True, "tool_use": False},
+}
 
-DEEPSEEK_MODELS = [
-    {"model_id": "deepseek-chat", "model_name": "DeepSeek V3", "context_length": 65536,
-     "input_price_cny": 0.002, "output_price_cny": 0.008, "cached_input_cny": 0.0005,
-     "reasoning_level": "high", "vision": False, "code": True, "reasoning": False, "tool_use": True},
-    {"model_id": "deepseek-reasoner", "model_name": "DeepSeek R1", "context_length": 65536,
-     "input_price_cny": 0.004, "output_price_cny": 0.016, "cached_input_cny": 0.001,
-     "reasoning_level": "high", "vision": False, "code": True, "reasoning": True, "tool_use": False},
-]
+DEEPSEEK_OR_MAP = {
+    "deepseek-chat": "deepseek/deepseek-chat",
+    "deepseek-reasoner": "deepseek/deepseek-reasoner",
+}
 
-MOONSHOT_MODELS = [
-    {"model_id": "moonshot-v1-auto", "model_name": "Moonshot V1 Auto", "context_length": 128000,
-     "input_price_cny": 0.012, "output_price_cny": 0.012, "reasoning_level": "medium",
-     "vision": False, "code": True, "reasoning": False, "tool_use": True},
-    {"model_id": "moonshot-v1-8k", "model_name": "Moonshot V1 8K", "context_length": 8192,
-     "input_price_cny": 0.012, "output_price_cny": 0.012, "reasoning_level": "medium",
-     "vision": False, "code": True, "reasoning": False, "tool_use": True},
-    {"model_id": "moonshot-v1-32k", "model_name": "Moonshot V1 32K", "context_length": 32768,
-     "input_price_cny": 0.012, "output_price_cny": 0.012, "reasoning_level": "medium",
-     "vision": False, "code": True, "reasoning": False, "tool_use": True},
-]
+DEEPSEEK_FALLBACK = {
+    "deepseek-chat": {"input": 0.27, "output": 1.10, "cached_input": 0.07},
+    "deepseek-reasoner": {"input": 0.55, "output": 2.19, "cached_input": 0.14},
+}
 
-MINIMAX_MODELS = [
-    {"model_id": "minimax-text-01", "model_name": "MiniMax Text 01", "context_length": 1048576,
-     "input_price_cny": 0.001, "output_price_cny": 0.002, "reasoning_level": "medium",
-     "vision": False, "code": True, "reasoning": False, "tool_use": True},
-    {"model_id": "minimax-vl-01", "model_name": "MiniMax VL 01", "context_length": 1048576,
-     "input_price_cny": 0.001, "output_price_cny": 0.002, "reasoning_level": "medium",
-     "vision": True, "code": True, "reasoning": False, "tool_use": True},
-]
+MOONSHOT_MODELS_META = {
+    "moonshot-v1-auto": {"model_name": "Moonshot V1 Auto", "context_length": 128000,
+                         "reasoning_level": "medium", "vision": False, "code": True, "reasoning": False, "tool_use": True},
+    "moonshot-v1-8k": {"model_name": "Moonshot V1 8K", "context_length": 8192,
+                       "reasoning_level": "medium", "vision": False, "code": True, "reasoning": False, "tool_use": True},
+    "moonshot-v1-32k": {"model_name": "Moonshot V1 32K", "context_length": 32768,
+                        "reasoning_level": "medium", "vision": False, "code": True, "reasoning": False, "tool_use": True},
+}
+
+MOONSHOT_FALLBACK = {
+    "moonshot-v1-auto": {"input": 1.66, "output": 1.66},
+    "moonshot-v1-8k": {"input": 1.66, "output": 1.66},
+    "moonshot-v1-32k": {"input": 1.66, "output": 1.66},
+}
+
+MINIMAX_MODELS_META = {
+    "minimax-text-01": {"model_name": "MiniMax Text 01", "context_length": 1048576,
+                        "reasoning_level": "medium", "vision": False, "code": True, "reasoning": False, "tool_use": True},
+    "minimax-vl-01": {"model_name": "MiniMax VL 01", "context_length": 1048576,
+                      "reasoning_level": "medium", "vision": True, "code": True, "reasoning": False, "tool_use": True},
+}
+
+MINIMAX_FALLBACK = {
+    "minimax-text-01": {"input": 0.14, "output": 0.28},
+    "minimax-vl-01": {"input": 0.14, "output": 0.28},
+}
 
 
-def _cny_to_usd_per_1m(cny_per_1k):
-    return round(cny_per_1k / CNY_TO_USD * 1000, 6)
-
-
-def _build_model(m, provider, source_info):
-    input_usd = _cny_to_usd_per_1m(m.get("input_price_cny", 0))
-    output_usd = _cny_to_usd_per_1m(m.get("output_price_cny", 0))
-    cached_usd = _cny_to_usd_per_1m(m["cached_input_cny"]) if "cached_input_cny" in m else None
+def _build_model(model_id, meta, price, provider, source_info, source_type="fallback"):
+    input_price = price.get("input", 0)
+    output_price = price.get("output", 0)
+    cached_input = price.get("cached_input")
     capabilities = {
-        "text": True, "vision": m.get("vision", False), "audio": False, "code": m.get("code", False),
-        "reasoning": m.get("reasoning", False), "tool_use": m.get("tool_use", False),
-        "function_calling": m.get("tool_use", False), "image_generation": False,
+        "text": True, "vision": meta.get("vision", False), "audio": False, "code": meta.get("code", False),
+        "reasoning": meta.get("reasoning", False), "tool_use": meta.get("tool_use", False),
+        "function_calling": meta.get("tool_use", False), "image_generation": False,
         "video_understanding": False, "video_generation": False,
         "json_mode": True, "structured_output": False, "code_execution": False,
         "fine_tuning": False, "embedding": False,
-        "context_length": m["context_length"], "max_output_tokens": 4096,
-        "reasoning_level": m["reasoning_level"],
+        "context_length": meta["context_length"], "max_output_tokens": 4096,
+        "reasoning_level": meta["reasoning_level"],
     }
     pricing = {
-        "input_per_1m_tokens": input_usd, "output_per_1m_tokens": output_usd,
-        "cached_input_price": cached_usd, "batch_input_price": None, "batch_output_price": None,
+        "input_per_1m_tokens": input_price, "output_per_1m_tokens": output_price,
+        "cached_input_price": cached_input, "batch_input_price": None, "batch_output_price": None,
         "price_per_image": None, "price_per_request": None, "reasoning_price_per_1m": None,
         "currency": "USD", "free_tier": False,
     }
     speed_score = 70
-    reasoning_score = {"high": 90, "medium": 70, "low": 50}[m["reasoning_level"]]
-    coding_score = reasoning_score - 5 if m.get("code") else reasoning_score - 15
-    cost_efficiency = max(0, 100 - (input_usd + output_usd) * 2)
+    reasoning_score = {"high": 90, "medium": 70, "low": 50}[meta["reasoning_level"]]
+    coding_score = reasoning_score - 5 if meta.get("code") else reasoning_score - 15
+    cost_efficiency = max(0, 100 - (input_price + output_price) * 2)
     overall = round(reasoning_score * 0.3 + coding_score * 0.2 + speed_score * 0.2 + cost_efficiency * 0.3, 1)
     scores = {
         "reasoning_score": reasoning_score, "coding_score": coding_score,
@@ -78,9 +86,9 @@ def _build_model(m, provider, source_info):
     if capabilities["code"]: tags.append("coding")
     if capabilities["tool_use"]: tags.append("tool_use")
     if capabilities["reasoning"]: tags.append("reasoning")
-    if input_usd <= 1: tags.append("cheap")
-    if input_usd >= 10: tags.append("premium")
-    if m["context_length"] >= 1000000: tags.append("long_context")
+    if input_price <= 1: tags.append("cheap")
+    if input_price >= 10: tags.append("premium")
+    if meta["context_length"] >= 1000000: tags.append("long_context")
     source = {
         **source_info,
         "last_updated": time.strftime("%Y-%m-%d"), "source_type": "official",
@@ -88,7 +96,7 @@ def _build_model(m, provider, source_info):
         "openai_compatible": True, "sdk_support": True,
     }
     return {
-        "model_id": m["model_id"], "model_name": m["model_name"], "provider": provider,
+        "model_id": model_id, "model_name": meta["model_name"], "provider": provider,
         "release_date": None, "status": "active",
         "capabilities": json.dumps(capabilities, ensure_ascii=False),
         "pricing": json.dumps(pricing, ensure_ascii=False),
@@ -104,13 +112,25 @@ class DeepSeekCrawler(BaseCrawler):
         super().__init__(provider="deepseek", base_url="https://api.deepseek.com")
 
     async def crawl(self) -> List[Dict[str, Any]]:
+        logger.info("Starting DeepSeek crawler...")
         source_info = {
             "model_page": "https://api-docs.deepseek.com/zh-cn/",
             "api_docs": "https://api-docs.deepseek.com/",
             "pricing_page": "https://api-docs.deepseek.com/zh-cn/quick_start/pricing",
         }
-        models = [_build_model(m, "deepseek", source_info) for m in DEEPSEEK_MODELS]
-        logger.info(f"Collected {len(models)} DeepSeek models")
+        live_prices = {}
+        or_prices = await fetch_openrouter_prices()
+        for model_id, or_id in DEEPSEEK_OR_MAP.items():
+            if or_id in or_prices:
+                live_prices[model_id] = or_prices[or_id]
+
+        models = []
+        for model_id, meta in DEEPSEEK_MODELS_META.items():
+            price = live_prices.get(model_id) or DEEPSEEK_FALLBACK.get(model_id, {})
+            source_type = "live" if model_id in live_prices else "fallback"
+            logger.info(f"  {meta['model_name']}: input=${price.get('input',0)}, output=${price.get('output',0)} [{source_type}]")
+            models.append(_build_model(model_id, meta, price, "deepseek", source_info, source_type))
+        logger.info(f"DeepSeek crawler completed, found {len(models)} models")
         return models
 
 
@@ -119,13 +139,17 @@ class MoonshotCrawler(BaseCrawler):
         super().__init__(provider="moonshot", base_url="https://api.moonshot.cn")
 
     async def crawl(self) -> List[Dict[str, Any]]:
+        logger.info("Starting Moonshot crawler...")
         source_info = {
             "model_page": "https://platform.moonshot.cn/docs/intro",
             "api_docs": "https://platform.moonshot.cn/docs/api/chat",
             "pricing_page": "https://platform.moonshot.cn/docs/pricing/chat",
         }
-        models = [_build_model(m, "moonshot", source_info) for m in MOONSHOT_MODELS]
-        logger.info(f"Collected {len(models)} Moonshot models")
+        models = []
+        for model_id, meta in MOONSHOT_MODELS_META.items():
+            price = MOONSHOT_FALLBACK.get(model_id, {})
+            models.append(_build_model(model_id, meta, price, "moonshot", source_info))
+        logger.info(f"Moonshot crawler completed, found {len(models)} models")
         return models
 
 
@@ -134,11 +158,15 @@ class MiniMaxCrawler(BaseCrawler):
         super().__init__(provider="minimax", base_url="https://www.minimaxi.com")
 
     async def crawl(self) -> List[Dict[str, Any]]:
+        logger.info("Starting MiniMax crawler...")
         source_info = {
             "model_page": "https://www.minimaxi.com/document/guides/chat-model/chat",
             "api_docs": "https://www.minimaxi.com/document/guides/chat-model/chat/api",
             "pricing_page": "https://www.minimaxi.com/document/guides/chat-model/chat/price",
         }
-        models = [_build_model(m, "minimax", source_info) for m in MINIMAX_MODELS]
-        logger.info(f"Collected {len(models)} MiniMax models")
+        models = []
+        for model_id, meta in MINIMAX_MODELS_META.items():
+            price = MINIMAX_FALLBACK.get(model_id, {})
+            models.append(_build_model(model_id, meta, price, "minimax", source_info))
+        logger.info(f"MiniMax crawler completed, found {len(models)} models")
         return models

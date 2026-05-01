@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
 import time
@@ -10,6 +10,39 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
+
+_or_prices_cache: Optional[Dict[str, Dict[str, Any]]] = None
+
+
+async def fetch_openrouter_prices(force_refresh: bool = False) -> Dict[str, Dict[str, Any]]:
+    global _or_prices_cache
+    if _or_prices_cache is not None and not force_refresh:
+        return _or_prices_cache
+
+    prices = {}
+    try:
+        async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+            r = await client.get("https://openrouter.ai/api/v1/models",
+                                 headers={"User-Agent": "AIX-Future-API-Crawler/1.0"})
+            r.raise_for_status()
+            data = r.json()
+            for model in data.get("data", []):
+                raw_id = model.get("id", "")
+                pricing = model.get("pricing", {})
+                prompt = float(pricing.get("prompt", "0"))
+                completion = float(pricing.get("completion", "0"))
+                cache_read = float(pricing.get("input_cache_read", "0"))
+                if prompt > 0 or completion > 0:
+                    prices[raw_id] = {
+                        "input": round(prompt * 1_000_000, 6),
+                        "output": round(completion * 1_000_000, 6),
+                        "cached_input": round(cache_read * 1_000_000, 6) if cache_read > 0 else None,
+                    }
+        logger.info(f"Fetched {len(prices)} model prices from OpenRouter API")
+        _or_prices_cache = prices
+    except Exception as e:
+        logger.warning(f"Failed to fetch OpenRouter prices: {e}")
+    return prices
 
 PROVIDER_NAME_MAPPING = {
     "anthropic": "Anthropic",

@@ -1,8 +1,59 @@
-from crawler.base import BaseCrawler
-from typing import List, Dict, Any
+import re
 import logging
+from typing import List, Dict, Any, Optional
+from crawler.base import BaseCrawler, fetch_openrouter_prices
 
 logger = logging.getLogger(__name__)
+
+OPENAI_MODELS_META = {
+    "gpt-5.5": {"model_name": "GPT-5.5", "context_length": 1000000, "reasoning_level": "high",
+                "features": {"vision": True, "tool_calling": True, "audio": False, "code_generation": True},
+                "release_date": "2026-04-23"},
+    "gpt-5.4": {"model_name": "GPT-5.4", "context_length": 1050000, "reasoning_level": "high",
+                "features": {"vision": True, "tool_calling": True, "audio": False, "code_generation": True},
+                "release_date": "2026-03-05"},
+    "gpt-5.4-mini": {"model_name": "GPT-5.4 Mini", "context_length": 400000, "reasoning_level": "medium",
+                     "features": {"vision": True, "tool_calling": True, "audio": False, "code_generation": True},
+                     "release_date": "2026-03-05"},
+    "gpt-5.4-nano": {"model_name": "GPT-5.4 Nano", "context_length": 400000, "reasoning_level": "low",
+                     "features": {"vision": True, "tool_calling": True, "audio": False, "code_generation": True},
+                     "release_date": "2026-03-05"},
+    "o3": {"model_name": "O3", "context_length": 200000, "reasoning_level": "high",
+           "features": {"vision": True, "tool_calling": True, "audio": False, "code_generation": True},
+           "release_date": "2025-01-20"},
+    "o3-mini": {"model_name": "O3 Mini", "context_length": 200000, "reasoning_level": "high",
+                "features": {"vision": False, "tool_calling": True, "audio": False, "code_generation": True},
+                "release_date": "2025-01-31"},
+    "gpt-4o": {"model_name": "GPT-4o", "context_length": 128000, "reasoning_level": "high",
+               "features": {"vision": True, "tool_calling": True, "audio": True, "code_generation": True},
+               "release_date": "2024-05-13"},
+    "gpt-4o-mini": {"model_name": "GPT-4o Mini", "context_length": 128000, "reasoning_level": "medium",
+                    "features": {"vision": True, "tool_calling": True, "audio": False, "code_generation": True},
+                    "release_date": "2024-07-18"},
+}
+
+OPENROUTER_ID_MAP = {
+    "gpt-5.5": "openai/gpt-5.5",
+    "gpt-5.4": "openai/gpt-5.4",
+    "gpt-5.4-mini": "openai/gpt-5.4-mini",
+    "gpt-5.4-nano": "openai/gpt-5.4-nano",
+    "o3": "openai/o3",
+    "o3-mini": "openai/o4-mini",
+    "gpt-4o": "openai/gpt-4o",
+    "gpt-4o-mini": "openai/gpt-4o-mini",
+}
+
+FALLBACK_PRICES = {
+    "gpt-5.5": {"input": 5.00, "cached_input": 0.50, "output": 30.00},
+    "gpt-5.4": {"input": 2.50, "cached_input": 0.25, "output": 15.00},
+    "gpt-5.4-mini": {"input": 0.75, "cached_input": 0.075, "output": 4.50},
+    "gpt-5.4-nano": {"input": 0.20, "cached_input": 0.02, "output": 1.25},
+    "o3": {"input": 2.00, "cached_input": 0.50, "output": 8.00},
+    "o3-mini": {"input": 1.10, "cached_input": 0.275, "output": 4.40},
+    "gpt-4o": {"input": 2.50, "cached_input": 1.25, "output": 10.00},
+    "gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60},
+}
+
 
 class OpenAICrawler(BaseCrawler):
     def __init__(self):
@@ -10,163 +61,43 @@ class OpenAICrawler(BaseCrawler):
             provider="openai",
             base_url="https://platform.openai.com/docs/models"
         )
-        self.source_url = "https://openai.com/api/pricing/"
+        self.source_url = "https://platform.openai.com/docs/pricing"
 
     async def crawl(self) -> List[Dict[str, Any]]:
         logger.info("Starting OpenAI crawler...")
+
+        live_prices = {}
+        or_prices = await fetch_openrouter_prices()
+        for model_id, or_id in OPENROUTER_ID_MAP.items():
+            if or_id in or_prices:
+                live_prices[model_id] = or_prices[or_id]
+                logger.info(f"  Got {model_id} price from OpenRouter: {live_prices[model_id]}")
+
+        if not live_prices:
+            logger.warning("OpenRouter prices unavailable, using fallback prices")
+
         models = []
+        for model_id, meta in OPENAI_MODELS_META.items():
+            price = live_prices.get(model_id) or FALLBACK_PRICES.get(model_id, {})
+            input_price = price.get("input", 0)
+            output_price = price.get("output", 0)
 
-        try:
-            await self.fetch_page(self.source_url)
-        except Exception as e:
-            logger.warning(f"Failed to fetch OpenAI pricing page: {e}, using cached pricing data")
+            source = "live" if model_id in live_prices else "fallback"
+            logger.info(f"  {meta['model_name']}: input=${input_price}, output=${output_price} [{source}]")
 
-        models_data = [
-            {
-                "model_id": "gpt-5.5",
-                "model_name": "GPT-5.5",
-                "release_date": "2025-10-20",
-                "status": "active",
-                "context_length": 400000,
-                "input_price_per_1m": 1.25,
-                "output_price_per_1m": 10.0,
-                "features": {
-                    "vision": True,
-                    "tool_calling": True,
-                    "audio": False,
-                    "code_generation": True
-                },
-                "reasoning_level": "high"
-            },
-            {
-                "model_id": "gpt-5.4",
-                "model_name": "GPT-5.4",
-                "release_date": "2025-08-15",
-                "status": "active",
-                "context_length": 128000,
-                "input_price_per_1m": 1.25,
-                "output_price_per_1m": 10.0,
-                "features": {
-                    "vision": True,
-                    "tool_calling": True,
-                    "audio": False,
-                    "code_generation": True
-                },
-                "reasoning_level": "high"
-            },
-            {
-                "model_id": "gpt-5.4-mini",
-                "model_name": "GPT-5.4 Mini",
-                "release_date": "2025-08-15",
-                "status": "active",
-                "context_length": 128000,
-                "input_price_per_1m": 0.25,
-                "output_price_per_1m": 2.0,
-                "features": {
-                    "vision": True,
-                    "tool_calling": True,
-                    "audio": False,
-                    "code_generation": True
-                },
-                "reasoning_level": "medium"
-            },
-            {
-                "model_id": "gpt-5.4-nano",
-                "model_name": "GPT-5.4 Nano",
-                "release_date": "2025-08-15",
-                "status": "active",
-                "context_length": 128000,
-                "input_price_per_1m": 0.10,
-                "output_price_per_1m": 0.40,
-                "features": {
-                    "vision": True,
-                    "tool_calling": True,
-                    "audio": False,
-                    "code_generation": True
-                },
-                "reasoning_level": "low"
-            },
-            {
-                "model_id": "o3",
-                "model_name": "O3",
-                "release_date": "2025-01-20",
-                "status": "active",
-                "context_length": 200000,
-                "input_price_per_1m": 10.0,
-                "output_price_per_1m": 40.0,
-                "features": {
-                    "vision": True,
-                    "tool_calling": True,
-                    "audio": False,
-                    "code_generation": True
-                },
-                "reasoning_level": "high"
-            },
-            {
-                "model_id": "o3-mini",
-                "model_name": "O3 Mini",
-                "release_date": "2025-01-31",
-                "status": "active",
-                "context_length": 200000,
-                "input_price_per_1m": 1.10,
-                "output_price_per_1m": 4.40,
-                "features": {
-                    "vision": False,
-                    "tool_calling": True,
-                    "audio": False,
-                    "code_generation": True
-                },
-                "reasoning_level": "high"
-            },
-            {
-                "model_id": "gpt-4o",
-                "model_name": "GPT-4o",
-                "release_date": "2024-05-13",
-                "status": "active",
-                "context_length": 128000,
-                "input_price_per_1m": 2.50,
-                "output_price_per_1m": 10.0,
-                "features": {
-                    "vision": True,
-                    "tool_calling": True,
-                    "audio": True,
-                    "code_generation": True
-                },
-                "reasoning_level": "high"
-            },
-            {
-                "model_id": "gpt-4o-mini",
-                "model_name": "GPT-4o Mini",
-                "release_date": "2024-07-18",
-                "status": "active",
-                "context_length": 128000,
-                "input_price_per_1m": 0.15,
-                "output_price_per_1m": 0.60,
-                "features": {
-                    "vision": True,
-                    "tool_calling": True,
-                    "audio": False,
-                    "code_generation": True
-                },
-                "reasoning_level": "medium"
-            }
-        ]
-
-        for m in models_data:
             model_record = self.create_model_record(
-                model_id=m["model_id"],
-                model_name=m["model_name"],
-                context_length=m["context_length"],
-                input_price=self.normalize_price_to_per_1m(m["input_price_per_1m"], "per 1M tokens"),
-                output_price=self.normalize_price_to_per_1m(m["output_price_per_1m"], "per 1M tokens"),
-                features=m["features"],
+                model_id=model_id,
+                model_name=meta["model_name"],
+                context_length=meta["context_length"],
+                input_price=input_price,
+                output_price=output_price,
+                features=meta["features"],
                 source_url=self.source_url,
-                release_date=m["release_date"],
-                status=m["status"],
-                reasoning_level=m["reasoning_level"]
+                release_date=meta["release_date"],
+                status="active",
+                reasoning_level=meta["reasoning_level"],
             )
             models.append(model_record)
-            logger.info(f"Extracted OpenAI model: {m['model_name']}")
 
         logger.info(f"OpenAI crawler completed, found {len(models)} models")
         return models

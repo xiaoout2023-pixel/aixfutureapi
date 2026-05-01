@@ -2,30 +2,48 @@ import json
 import logging
 import time
 from typing import List, Dict, Any
-from crawler.base import BaseCrawler
+from crawler.base import BaseCrawler, fetch_openrouter_prices
 
 logger = logging.getLogger(__name__)
 
-GEMINI_MODELS = [
-    {"model_id": "gemini-2.5-pro", "model_name": "Gemini 2.5 Pro", "context_length": 1048576, "max_output_tokens": 65536,
-     "input_price": 1.25, "output_price": 10.0, "cached_input": 0.3125, "reasoning_level": "high",
-     "vision": True, "audio": True, "code": True, "reasoning": True, "tool_use": True, "structured_output": True},
-    {"model_id": "gemini-2.5-flash", "model_name": "Gemini 2.5 Flash", "context_length": 1048576, "max_output_tokens": 65536,
-     "input_price": 0.15, "output_price": 0.60, "cached_input": 0.0375, "reasoning_level": "high",
-     "vision": True, "audio": True, "code": True, "reasoning": True, "tool_use": True, "structured_output": True},
-    {"model_id": "gemini-2.0-flash", "model_name": "Gemini 2.0 Flash", "context_length": 1048576, "max_output_tokens": 8192,
-     "input_price": 0.10, "output_price": 0.40, "cached_input": 0.025, "reasoning_level": "medium",
-     "vision": True, "audio": True, "code": True, "reasoning": False, "tool_use": True, "structured_output": True},
-    {"model_id": "gemini-2.0-flash-lite", "model_name": "Gemini 2.0 Flash Lite", "context_length": 1048576, "max_output_tokens": 8192,
-     "input_price": 0.075, "output_price": 0.30, "cached_input": 0.01875, "reasoning_level": "low",
-     "vision": True, "audio": False, "code": False, "reasoning": False, "tool_use": True, "structured_output": False},
-    {"model_id": "gemini-1.5-pro", "model_name": "Gemini 1.5 Pro", "context_length": 2097152, "max_output_tokens": 8192,
-     "input_price": 1.25, "output_price": 5.0, "cached_input": 0.3125, "reasoning_level": "high",
-     "vision": True, "audio": True, "code": True, "reasoning": False, "tool_use": True, "structured_output": True},
-    {"model_id": "gemini-1.5-flash", "model_name": "Gemini 1.5 Flash", "context_length": 1048576, "max_output_tokens": 8192,
-     "input_price": 0.075, "output_price": 0.30, "cached_input": 0.01875, "reasoning_level": "medium",
-     "vision": True, "audio": True, "code": False, "reasoning": False, "tool_use": True, "structured_output": False},
-]
+GEMINI_MODELS_META = {
+    "gemini-3.1-pro-preview": {"model_name": "Gemini 3.1 Pro", "context_length": 1048576, "max_output_tokens": 65536,
+                               "reasoning_level": "high", "vision": True, "audio": True, "code": True,
+                               "reasoning": True, "tool_use": True, "structured_output": True},
+    "gemini-3.1-flash-preview": {"model_name": "Gemini 3.1 Flash", "context_length": 1048576, "max_output_tokens": 65536,
+                                 "reasoning_level": "high", "vision": True, "audio": True, "code": True,
+                                 "reasoning": True, "tool_use": True, "structured_output": True},
+    "gemini-2.5-pro": {"model_name": "Gemini 2.5 Pro", "context_length": 1048576, "max_output_tokens": 65536,
+                       "reasoning_level": "high", "vision": True, "audio": True, "code": True,
+                       "reasoning": True, "tool_use": True, "structured_output": True},
+    "gemini-2.5-flash": {"model_name": "Gemini 2.5 Flash", "context_length": 1048576, "max_output_tokens": 65536,
+                         "reasoning_level": "high", "vision": True, "audio": True, "code": True,
+                         "reasoning": True, "tool_use": True, "structured_output": True},
+    "gemini-2.0-flash": {"model_name": "Gemini 2.0 Flash", "context_length": 1048576, "max_output_tokens": 8192,
+                         "reasoning_level": "medium", "vision": True, "audio": True, "code": True,
+                         "reasoning": False, "tool_use": True, "structured_output": True},
+    "gemini-2.0-flash-lite": {"model_name": "Gemini 2.0 Flash Lite", "context_length": 1048576, "max_output_tokens": 8192,
+                              "reasoning_level": "low", "vision": True, "audio": False, "code": False,
+                              "reasoning": False, "tool_use": True, "structured_output": False},
+}
+
+OPENROUTER_ID_MAP = {
+    "gemini-3.1-pro-preview": "google/gemini-3.1-pro-preview",
+    "gemini-3.1-flash-preview": "google/gemini-3.1-flash-preview",
+    "gemini-2.5-pro": "google/gemini-2.5-pro-preview",
+    "gemini-2.5-flash": "google/gemini-2.5-flash-preview",
+    "gemini-2.0-flash": "google/gemini-2.0-flash-001",
+    "gemini-2.0-flash-lite": "google/gemini-2.0-flash-lite-001",
+}
+
+FALLBACK_PRICES = {
+    "gemini-3.1-pro-preview": {"input": 2.00, "output": 12.00},
+    "gemini-3.1-flash-preview": {"input": 0.50, "output": 3.00},
+    "gemini-2.5-pro": {"input": 1.25, "output": 10.00},
+    "gemini-2.5-flash": {"input": 0.15, "output": 0.60},
+    "gemini-2.0-flash": {"input": 0.10, "output": 0.40},
+    "gemini-2.0-flash-lite": {"input": 0.075, "output": 0.30},
+}
 
 
 class GeminiCrawler(BaseCrawler):
@@ -33,26 +51,45 @@ class GeminiCrawler(BaseCrawler):
         super().__init__(provider="google", base_url="https://ai.google.dev")
 
     async def crawl(self) -> List[Dict[str, Any]]:
+        logger.info("Starting Gemini crawler...")
+
+        live_prices = {}
+        or_prices = await fetch_openrouter_prices()
+        for model_id, or_id in OPENROUTER_ID_MAP.items():
+            if or_id in or_prices:
+                live_prices[model_id] = or_prices[or_id]
+
+        if not live_prices:
+            logger.warning("OpenRouter prices unavailable, using fallback prices")
+
         models = []
-        for m in GEMINI_MODELS:
+        for model_id, meta in GEMINI_MODELS_META.items():
+            price = live_prices.get(model_id) or FALLBACK_PRICES.get(model_id, {})
+            input_price = price.get("input", 0)
+            output_price = price.get("output", 0)
+            cached_input = price.get("cached_input")
+
+            source = "live" if model_id in live_prices else "fallback"
+            logger.info(f"  {meta['model_name']}: input=${input_price}, output=${output_price} [{source}]")
+
             capabilities = {
-                "text": True, "vision": m["vision"], "audio": m["audio"], "code": m["code"],
-                "reasoning": m["reasoning"], "tool_use": m["tool_use"], "function_calling": m["tool_use"],
-                "image_generation": False, "video_understanding": m["vision"], "video_generation": False,
-                "json_mode": m["structured_output"], "structured_output": m["structured_output"],
+                "text": True, "vision": meta["vision"], "audio": meta["audio"], "code": meta["code"],
+                "reasoning": meta["reasoning"], "tool_use": meta["tool_use"], "function_calling": meta["tool_use"],
+                "image_generation": False, "video_understanding": meta["vision"], "video_generation": False,
+                "json_mode": meta["structured_output"], "structured_output": meta["structured_output"],
                 "code_execution": True, "fine_tuning": False, "embedding": False,
-                "context_length": m["context_length"], "max_output_tokens": m["max_output_tokens"],
-                "reasoning_level": m["reasoning_level"],
+                "context_length": meta["context_length"], "max_output_tokens": meta["max_output_tokens"],
+                "reasoning_level": meta["reasoning_level"],
             }
             pricing = {
-                "input_per_1m_tokens": m["input_price"], "output_per_1m_tokens": m["output_price"],
-                "cached_input_price": m.get("cached_input"), "batch_input_price": None,
+                "input_per_1m_tokens": input_price, "output_per_1m_tokens": output_price,
+                "cached_input_price": cached_input, "batch_input_price": None,
                 "batch_output_price": None, "price_per_image": None, "price_per_request": None,
                 "reasoning_price_per_1m": None, "currency": "USD", "free_tier": False,
             }
-            scores = self._calc_scores(m["reasoning_level"], m["input_price"], m["output_price"], m["code"])
+            scores = self._calc_scores(meta["reasoning_level"], input_price, output_price, meta["code"])
             tags = self.generate_tags(capabilities, pricing)
-            source = {
+            source_data = {
                 "model_page": "https://ai.google.dev/gemini-api/docs/models",
                 "api_docs": "https://ai.google.dev/api",
                 "pricing_page": "https://ai.google.dev/pricing",
@@ -61,16 +98,16 @@ class GeminiCrawler(BaseCrawler):
                 "openai_compatible": False, "sdk_support": True,
             }
             models.append({
-                "model_id": m["model_id"], "model_name": m["model_name"], "provider": "google",
+                "model_id": model_id, "model_name": meta["model_name"], "provider": "google",
                 "release_date": None, "status": "active",
                 "capabilities": json.dumps(capabilities, ensure_ascii=False),
                 "pricing": json.dumps(pricing, ensure_ascii=False),
                 "scores": json.dumps(scores, ensure_ascii=False),
                 "tags": json.dumps(tags, ensure_ascii=False),
-                "source": json.dumps(source, ensure_ascii=False),
+                "source": json.dumps(source_data, ensure_ascii=False),
                 "last_updated": time.strftime("%Y-%m-%d"),
             })
-        logger.info(f"Collected {len(models)} Gemini models")
+        logger.info(f"Gemini crawler completed, found {len(models)} models")
         return models
 
     def _calc_scores(self, reasoning_level, input_price, output_price, has_code):
