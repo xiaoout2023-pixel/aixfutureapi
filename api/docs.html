@@ -18,7 +18,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-
 .sidebar.collapsed { transform: translateX(-260px); }
 .sidebar h3 { position: relative; padding: 10px 36px 10px 20px; font-size: 13px; color: #888; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #eee; margin-bottom: 0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 40px; }
 .sidebar h3:hover { background: #f8f8f8; }
-.sidebar h3::after { content: '▼'; font-size: 10px; color: #aaa; transition: transform 0.2s; flex-shrink: 0; width: 12px; text-align: center; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
+.sidebar h3::after { content: '\25BC'; font-size: 10px; color: #aaa; transition: transform 0.2s; flex-shrink: 0; width: 12px; text-align: center; position: absolute; right: 12px; top: 50%; transform: translateY(-50%); }
 .sidebar h3.collapsed::after { transform: translateY(-50%) rotate(-90deg); }
 .sidebar .nav-group { display: block; }
 .sidebar .nav-group.collapsed { display: none; }
@@ -48,7 +48,7 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 <span></span><span></span><span></span>
 </button>
 <h1>AI Model Pricing API</h1>
-<p>AI模型价格采集与对比系统 v0.3.0 &mdash; <a href="/">https://www.aixfutrueapi.top</a></p>
+<p>AI模型价格采集与对比系统 v2.0.0 &mdash; <a href="/">https://www.aixfutrueapi.top</a></p>
 </div>
 <div class="container">
 <div class="sidebar">
@@ -57,121 +57,101 @@ pre { background: #282c34; color: #abb2bf; padding: 16px; border-radius: 6px; ov
 <a href="#data-model">数据模型</a>
 <a href="#list-models"><span class="method get">GET</span> /api/models</a>
 <a href="#get-model"><span class="method get">GET</span> /api/models/:id</a>
-<a href="#compare"><span class="method get">GET</span> /api/compare</a>
+<a href="#model-pricing"><span class="method get">GET</span> /api/models/:id/pricing</a>
+<a href="#model-evaluations"><span class="method get">GET</span> /api/models/:id/evaluations</a>
 <a href="#providers"><span class="method get">GET</span> /api/providers</a>
 <a href="#search"><span class="method get">GET</span> /api/search</a>
-<a href="#search-suggest"><span class="method get">GET</span> /api/search/suggest</a>
+<a href="#compare"><span class="method get">GET</span> /api/compare</a>
 <a href="#status"><span class="method get">GET</span> /api/status</a>
 <a href="#exchange-rate"><span class="method get">GET</span> /api/exchange-rate</a>
-<a href="#model-types"><span class="method get">GET</span> /api/model-types</a>
+</div>
+<h3>排行榜</h3>
+<div class="nav-group">
+<a href="#leaderboard"><span class="method get">GET</span> /api/leaderboard</a>
+<a href="#lb-categories"><span class="method get">GET</span> /api/leaderboard/categories</a>
+<a href="#lb-superclue"><span class="method get">GET</span> /api/leaderboard/superclue/:category</a>
 </div>
 <h3>成本计算</h3>
 <div class="nav-group">
 <a href="#cost-calc"><span class="method post">POST</span> /api/cost/calculate</a>
 <a href="#cost-compare"><span class="method post">POST</span> /api/cost/compare</a>
 </div>
-<h3>场景模拟器</h3>
-<div class="nav-group">
-<a href="#calc-scenarios"><span class="method get">GET</span> /api/calculator/scenarios</a>
-<a href="#calc-templates"><span class="method get">GET</span> /api/calculator/templates</a>
-</div>
-<h3>排行榜</h3>
-<div class="nav-group">
-<a href="#lb-categories"><span class="method get">GET</span> /api/leaderboard/categories</a>
-<a href="#lb-data"><span class="method get">GET</span> /api/leaderboard/:category</a>
-<a href="#lb-detail"><span class="method get">GET</span> /api/leaderboard/:category/all</a>
-</div>
-<h3>多供应商价格对比</h3>
-<div class="nav-group">
-<a href="#model-marketplace"><span class="method get">GET</span> /api/models/:id/marketplace</a>
-<a href="#marketplace-compare"><span class="method get">GET</span> /api/marketplace/compare</a>
-</div>
 </div>
 <div class="main">
 
 <div class="endpoint" id="data-model">
 <h2>数据模型</h2>
-<p class="desc">每个模型对象包含以下字段：</p>
-<pre>model_id: 唯一标识（string，如 openai-gpt-4o, deepseek-deepseek-chat）
-model_name: 模型名称（string，如 GPT-4o, DeepSeek V3）
-provider: 厂商（string，如 openai / google / deepseek / aliyun / anthropic）
+<p class="desc">基于 models / pricing / evaluations 三表联合查询，每个模型对象包含以下字段：</p>
+<pre>model_id: 唯一标识（string，如 openai/gpt-4o-2024-08-06, anthropic/claude-opus-4-7）
+model_name: 模型名称（string，如 GPT-4o, claude-opus-4-7）
+provider: 厂商（string，如 openai / google / deepseek / anthropic）
+provider_type: 厂商类型（open_source / closed）
 release_date: 发布时间（YYYY-MM-DD 或 null）
-status: 状态（active / beta / deprecated）
-
+status: 状态（active / beta / deprecated / coming_soon）
+aliases: 别名列表（string[]）
 capabilities: 能力对象
   text: 文本生成（bool）
-  vision: 图像理解（bool）
-  audio: 音频能力（bool）
   code: 代码生成（bool）
   reasoning: 推理能力（bool）
+  vision: 图像理解（bool）
+  image_gen: 图像生成（bool）
+  audio: 音频理解（bool）
+  audio_gen: 音频生成（bool）
+  video: 视频理解（bool）
   tool_use: 工具调用（bool）
-  function_calling: 函数调用（bool）
-  image_generation: 图像生成（bool）
-  video_understanding: 视频理解（bool）
-  video_generation: 视频生成（bool）
-  json_mode: JSON模式（bool）
   structured_output: 结构化输出（bool）
-  code_execution: 代码执行（bool）
+  streaming: 流式输出（bool）
+  batch: 批处理（bool）
   fine_tuning: 微调支持（bool）
-  embedding: 嵌入模型（bool）
-  context_length: 最大上下文长度（int，如 128000）
-  max_output_tokens: 最大输出token数（int，如 4096）
-  reasoning_level: 推理等级（low/medium/high）
+  embedding: 向量嵌入（bool）
+context_length: 最大上下文长度（int，如 128000）
+max_output_tokens: 最大输出token数（int，如 16384）
+regions: 支持区域（string[]，如 ["us", "eu", "ap"]，空=全球）
+private_deployment: 是否支持私有部署（bool）
+openai_compatible: 是否兼容OpenAI API（bool）
+urls: 相关链接对象
+  official: 官方介绍页
+  docs: API文档页
+  pricing: 定价页
+tags: 标签数组（如 ["flagship", "vision", "coding"]）
+last_updated: 最后更新时间（ISO 8601）
 
-pricing: 定价对象
+pricing: 最新官方全球定价对象
   input_per_1m_tokens: 输入价格（每100万token，USD）
   output_per_1m_tokens: 输出价格（每100万token，USD）
-  cached_input_price: 缓存输入价格（每100万token，USD 或 null）
-  batch_input_price: 批量输入价格（USD 或 null）
-  batch_output_price: 批量输出价格（USD 或 null）
-  price_per_image: 每张图片价格（USD 或 null）
-  price_per_request: 每次请求价格（USD 或 null）
-  reasoning_price_per_1m: 推理价格（每100万token，USD 或 null）
+  cache_read_per_1m: 缓存读取价格（每100万token，USD 或 null）
+  cache_write_per_1m: 缓存写入价格（每100万token，USD 或 null）
   currency: 货币（默认USD）
-  free_tier: 是否免费（bool）
+  free_tier_tokens: 免费额度（token数/月 或 null）
+  reasoning_tokens_charged: 是否对推理token计费（bool）
 
-scores: 评分对象
-  reasoning_score: 推理评分（0-100）
-  coding_score: 编码评分（0-100）
-  speed_score: 速度评分（0-100）
-  cost_efficiency_score: 性价比评分（0-100）
-  overall_score: 综合评分（0-100）
-  latency_level: 延迟等级（low/medium/high）
-  throughput_level: 吞吐等级（low/medium/high）
-
-tags: 标签数组（如 ["vision", "coding", "tool_use", "reasoning", "cheap", "premium", "long_context"]）
-
-source: 来源对象
-  model_page: 模型页面URL
-  api_docs: API文档URL
-  pricing_page: 定价页面URL
-  source_type: 数据来源类型（official / marketplace / open_source）
-  region_restriction: 是否有地区限制（bool）
-  enterprise_only: 是否仅企业可用（bool）
-  openai_compatible: 是否兼容OpenAI API（bool）
-  sdk_support: 是否提供SDK（bool）
-
-last_updated: 最后更新日期（YYYY-MM-DD）</pre>
+evaluation: 最新评测数据对象（合并 AA + LMArena）
+  aa_intelligence_index: AA综合智能评分（0-100）
+  aa_coding_index: AA代码能力评分（0-100）
+  aa_math_index: AA数学能力评分（0-100）
+  tokens_per_second: 输出速度（tokens/秒）
+  ttft_ms: 首Token延迟（毫秒）
+  lmarena_elo: LMArena综合对战Elo（约500-2000）
+  lmarena_coding: LMArena代码对战Elo
+  lmarena_math: LMArena数学对战Elo
+  lmarena_hard: LMArena难题对战Elo</pre>
 </div>
 
 <div class="endpoint" id="list-models">
 <h2><span class="method get">GET</span> /api/models</h2>
-<p class="desc">模型列表。</p>
+<p class="desc">模型列表，支持多维度筛选和排序。数据来自 models + pricing + evaluations 三表联合查询。</p>
 <h3>参数</h3>
 <table>
 <tr><th>参数</th><th>类型</th><th>说明</th></tr>
-<tr><td>provider</td><td>string</td><td>按厂商筛选，如 openai</td></tr>
-<tr><td>status</td><td>string</td><td>按状态筛选，如 active</td></tr>
-<tr><td>tags</td><td>string</td><td>按标签筛选，逗号分隔，如 vision,coding</td></tr>
-<tr><td>type</td><td>string</td><td>按类型筛选，llm/multimodal/vision/audio/code</td></tr>
-<tr><td>access</td><td>string</td><td>按开源类型筛选，open/closed</td></tr>
-<tr><td>min_context</td><td>int</td><td>最小上下文长度</td></tr>
+<tr><td>provider</td><td>string</td><td>按厂商筛选，如 openai, anthropic, google</td></tr>
+<tr><td>provider_type</td><td>string</td><td>按厂商类型筛选：open_source / closed</td></tr>
+<tr><td>capability</td><td>string</td><td>按能力筛选：text/code/reasoning/vision/image_gen/audio/audio_gen/video/tool_use/structured_output/streaming/batch/fine_tuning/embedding</td></tr>
+<tr><td>status</td><td>string</td><td>按状态筛选：active/beta/deprecated/coming_soon</td></tr>
+<tr><td>q</td><td>string</td><td>搜索关键词（模型ID、名称、厂商）</td></tr>
+<tr><td>sort_by</td><td>string</td><td>排序字段：aa_intelligence_index / lmarena_elo / input_price / output_price / context_length / tokens_per_second</td></tr>
+<tr><td>sort_order</td><td>string</td><td>排序方向：asc / desc，默认 desc</td></tr>
+<tr><td>min_input_price</td><td>float</td><td>最小输入价格（每百万tokens）</td></tr>
 <tr><td>max_input_price</td><td>float</td><td>最大输入价格（每百万tokens）</td></tr>
-<tr><td>max_output_price</td><td>float</td><td>最大输出价格（每百万tokens）</td></tr>
-<tr><td>has_vision</td><td>bool</td><td>是否支持视觉，true/false</td></tr>
-<tr><td>has_tool_calling</td><td>bool</td><td>是否支持工具调用，true/false</td></tr>
-<tr><td>sort_by</td><td>string</td><td>排序字段：overall_score/cost_efficiency_score/input_price/output_price/context_length</td></tr>
-<tr><td>sort_order</td><td>string</td><td>排序方向：asc/desc，默认 desc</td></tr>
 <tr><td>page</td><td>int</td><td>页码，默认 1</td></tr>
 <tr><td>page_size</td><td>int</td><td>每页数量，默认 20，最大 100</td></tr>
 </table>
@@ -187,14 +167,80 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
 }</pre>
 <h3>示例</h3>
 <pre>/api/models?provider=openai
-/api/models?type=multimodal
-/api/models?access=closed
-/api/models?page=1&page_size=10</pre>
+/api/models?capability=vision
+/api/models?provider_type=closed
+/api/models?sort_by=lmarena_elo
+/api/models?min_input_price=0&max_input_price=5
+/api/models?q=claude&page=1&page_size=10</pre>
 </div>
 
 <div class="endpoint" id="get-model">
 <h2><span class="method get">GET</span> /api/models/{model_id}</h2>
-<p class="desc">单个模型详情。</p>
+<p class="desc">单个模型详情，包含完整定价历史和所有评测数据。</p>
+<h3>参数</h3>
+<table>
+<tr><th>参数</th><th>说明</th></tr>
+<tr><td>model_id</td><td>路径参数，模型ID，如 openai/gpt-4o-2024-08-06</td></tr>
+</table>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    ...模型基本字段,
+    "pricing_list": [所有定价记录，按valid_from降序],
+    "pricing": {最新官方全球定价},
+    "evaluations": [所有评测记录，按eval_date降序],
+    "evaluation": {合并最新AA+LMArena评测}
+  }
+}</pre>
+<h3>错误码</h3>
+<table>
+<tr><th>状态码</th><th>说明</th></tr>
+<tr><td>404</td><td>模型不存在</td></tr>
+</table>
+</div>
+
+<div class="endpoint" id="model-pricing">
+<h2><span class="method get">GET</span> /api/models/{model_id}/pricing</h2>
+<p class="desc">获取指定模型的所有定价记录（含不同渠道、区域、时间点）。</p>
+<h3>参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>说明</th></tr>
+<tr><td>model_id</td><td>string</td><td>路径参数，模型ID</td></tr>
+<tr><td>channel</td><td>string</td><td>筛选渠道：official / marketplace / reseller</td></tr>
+<tr><td>region</td><td>string</td><td>筛选区域：global / us / eu / ap</td></tr>
+</table>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "pricing_id": "openai/gpt-4o-2024-08-06/official/global/2024-08-06",
+      "model_id": "openai/gpt-4o-2024-08-06",
+      "channel": "official",
+      "region": "global",
+      "valid_from": "2024-08-06",
+      "currency": "USD",
+      "input_price_per_1m": 2.5,
+      "output_price_per_1m": 10.0,
+      "cache_read_price_per_1m": 1.25,
+      "cache_write_price_per_1m": null,
+      "reasoning_tokens_charged": false,
+      "free_tier_tokens": null,
+      "has_spot": false,
+      "source": "https://openai.com/pricing",
+      "last_verified": "2026-05-13T02:00:00+00:00"
+    }
+  ],
+  "total": 1
+}</pre>
+</div>
+
+<div class="endpoint" id="model-evaluations">
+<h2><span class="method get">GET</span> /api/models/{model_id}/evaluations</h2>
+<p class="desc">获取指定模型的所有评测记录（含不同来源、不同日期）。</p>
 <h3>参数</h3>
 <table>
 <tr><th>参数</th><th>说明</th></tr>
@@ -204,17 +250,85 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
 <pre>{
   "code": 200,
   "message": "success",
-  "data": 模型对象
+  "data": [
+    {
+      "eval_id": "openai/gpt-4o-2024-08-06/artificialanalysis/2026-05-13",
+      "model_id": "openai/gpt-4o-2024-08-06",
+      "eval_date": "2026-05-13",
+      "source": "https://artificialanalysis.ai",
+      "aa_intelligence_index": 18.6,
+      "aa_coding_index": 16.6,
+      "gpqa": 0.521,
+      "hle": 0.029,
+      "tokens_per_second": 99,
+      "ttft_ms": 489
+    },
+    {
+      "eval_id": "openai/gpt-4o-2024-08-06/lmarena/2026-05-13",
+      "source": "https://lmarena.ai",
+      "lmarena_elo": 1287.22,
+      "lmarena_coding": 1289.14,
+      "lmarena_math": 1270.59,
+      "lmarena_hard": 1266.14
+    }
+  ],
+  "total": 2
+}</pre>
+<h3>分数量纲说明</h3>
+<table>
+<tr><th>来源</th><th>量纲</th><th>示例</th></tr>
+<tr><td>Artificial Analysis (index类)</td><td>0-100</td><td>aa_intelligence_index = 57.3</td></tr>
+<tr><td>Artificial Analysis (比例值)</td><td>0-1</td><td>gpqa = 0.521</td></tr>
+<tr><td>LMArena</td><td>Elo评分</td><td>lmarena_elo = 1464</td></tr>
+</table>
+</div>
+
+<div class="endpoint" id="providers">
+<h2><span class="method get">GET</span> /api/providers</h2>
+<p class="desc">供应商列表，主流厂商排在前面。</p>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": [
+    { "provider": "openai", "provider_type": "closed", "model_count": 65 },
+    { "provider": "anthropic", "provider_type": "closed", "model_count": 32 },
+    { "provider": "google", "provider_type": "closed", "model_count": 32 }
+  ]
+}</pre>
+</div>
+
+<div class="endpoint" id="search">
+<h2><span class="method get">GET</span> /api/search</h2>
+<p class="desc">搜索模型，按综合智能评分排序。</p>
+<h3>参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+<tr><td>q</td><td>string</td><td>是</td><td>搜索关键词</td></tr>
+<tr><td>limit</td><td>int</td><td>否</td><td>返回数量，默认10，最大50</td></tr>
+</table>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "suggestions": [
+    {
+      "model_id": "openai/gpt-5-codex",
+      "model_name": "OpenAI: GPT-5 Codex",
+      "provider": "openai",
+      "aa_intelligence_index": 44.6
+    }
+  ]
 }</pre>
 </div>
 
 <div class="endpoint" id="compare">
 <h2><span class="method get">GET</span> /api/compare</h2>
-<p class="desc">模型对比。</p>
+<p class="desc">多模型对比，自动计算最便宜输入/输出、最高智能评分、最长上下文。</p>
 <h3>参数</h3>
 <table>
-<tr><th>参数</th><th>说明</th></tr>
-<tr><td>models</td><td>模型ID，逗号分隔，如 gpt-4o,claude-3-opus</td></tr>
+<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+<tr><td>models</td><td>string</td><td>是</td><td>逗号分隔的模型ID，最多10个，如 openai/gpt-4o-2024-08-06,anthropic/claude-opus-4-7</td></tr>
 </table>
 <h3>响应</h3>
 <pre>{
@@ -222,84 +336,26 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
   "message": "success",
   "data": [模型对象数组],
   "meta": {
-    "cheapest_input": "最便宜输入的模型ID",
-    "cheapest_output": "最便宜输出的模型ID",
-    "longest_context": "最长上下文的模型ID",
-    "best_overall": "综合评分最高的模型ID"
+    "cheapest_input": "openai/gpt-4o-2024-08-06",
+    "cheapest_output": "openai/gpt-4o-2024-08-06",
+    "best_intelligence": "anthropic/claude-opus-4-7",
+    "longest_context": "anthropic/claude-opus-4-7"
   }
-}</pre>
-</div>
-
-<div class="endpoint" id="providers">
-<h2><span class="method get">GET</span> /api/providers</h2>
-<p class="desc">供应商列表。</p>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": [
-    {
-      "provider": "openai",
-      "model_count": 8
-    }
-  ]
-}</pre>
-</div>
-
-<div class="endpoint" id="search">
-<h2><span class="method get">GET</span> /api/search</h2>
-<p class="desc">搜索模型。支持模糊搜索、任务类型、价格区间、多维度筛选。</p>
-<h3>参数</h3>
-<table>
-<tr><th>参数</th><th>类型</th><th>说明</th></tr>
-<tr><td>q</td><td>string</td><td>搜索关键词：模型名、厂商名、标签</td></tr>
-<tr><td>task</td><td>string</td><td>任务类型：text_classification/code_generation/translation/reasoning/summarization/multimodal</td></tr>
-<tr><td>provider</td><td>string</td><td>厂商筛选，逗号分隔，如 openai,anthropic</td></tr>
-<tr><td>tags</td><td>string</td><td>标签筛选，逗号分隔</td></tr>
-<tr><td>text_generation</td><td>bool</td><td>文本生成，true/false</td></tr>
-<tr><td>code_generation</td><td>bool</td><td>代码生成，true/false</td></tr>
-<tr><td>vision</td><td>bool</td><td>视觉，true/false</td></tr>
-<tr><td>audio</td><td>bool</td><td>音频，true/false</td></tr>
-<tr><td>multimodal</td><td>bool</td><td>多模态，true/false</td></tr>
-<tr><td>tool_calling</td><td>bool</td><td>工具调用，true/false</td></tr>
-<tr><td>reasoning_level</td><td>string</td><td>推理等级，low/medium/high</td></tr>
-<tr><td>min_input_price</td><td>number</td><td>输入价格下限</td></tr>
-<tr><td>max_input_price</td><td>number</td><td>输入价格上限</td></tr>
-<tr><td>min_output_price</td><td>number</td><td>输出价格下限</td></tr>
-<tr><td>max_output_price</td><td>number</td><td>输出价格上限</td></tr>
-<tr><td>sort_by</td><td>string</td><td>排序字段：overall_score/cost_efficiency_score/input_price/output_price/context_length（默认 cost_efficiency_score）</td></tr>
-<tr><td>sort_order</td><td>string</td><td>排序方向：asc/desc（默认 desc）</td></tr>
-<tr><td>page</td><td>number</td><td>页码，默认 1</td></tr>
-<tr><td>page_size</td><td>number</td><td>每页数量，默认 20</td></tr>
-</table>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": [模型对象数组],
-  "total": 数量,
-  "page": 1,
-  "page_size": 20,
-  "total_pages": 1,
-  "suggestions": [
-    // 搜索无结果时返回建议
-  ],
-  "empty_state": true
-  // 空状态时返回 true
 }</pre>
 </div>
 
 <div class="endpoint" id="status">
 <h2><span class="method get">GET</span> /api/status</h2>
-<p class="desc">服务状态。</p>
+<p class="desc">服务状态，返回数据库统计信息。</p>
 <h3>响应</h3>
 <pre>{
   "code": 200,
   "message": "success",
   "data": {
-    "total_models": 17,
-    "providers": 3,
-    "provider_list": ["openai", "aliyun", "anthropic"]
+    "total_models": 399,
+    "total_providers": 61,
+    "total_pricing_records": 2264,
+    "total_evaluations": 843
   }
 }</pre>
 </div>
@@ -313,33 +369,78 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
   "message": "success",
   "data": {
     "base": "USD",
-    "rates": {
-      "CNY": 7.25,
-      "EUR": 0.92,
-      "JPY": 149.5,
-      "GBP": 0.79,
-      "USD": 1.0
-    },
+    "rates": { "CNY": 7.25, "EUR": 0.92, "JPY": 149.5, "GBP": 0.79, "USD": 1.0 },
     "updated_at": "2026-04-26"
   }
 }</pre>
 </div>
 
-<div class="endpoint" id="model-types">
-<h2><span class="method get">GET</span> /api/model-types</h2>
-<p class="desc">模型分类。</p>
+<div class="endpoint" id="leaderboard">
+<h2><span class="method get">GET</span> /api/leaderboard</h2>
+<p class="desc">基于 evaluations 表的排行榜，按指定评测指标排名。</p>
+<h3>参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>说明</th></tr>
+<tr><td>metric</td><td>string</td><td>排名指标：aa_intelligence_index / aa_coding_index / aa_math_index / lmarena_elo / lmarena_coding / lmarena_math / lmarena_hard / tokens_per_second，默认 aa_intelligence_index</td></tr>
+<tr><td>provider_type</td><td>string</td><td>筛选厂商类型：open_source / closed</td></tr>
+<tr><td>page</td><td>int</td><td>页码，默认 1</td></tr>
+<tr><td>page_size</td><td>int</td><td>每页数量，默认 50，最大 200</td></tr>
+</table>
 <h3>响应</h3>
 <pre>{
   "code": 200,
   "message": "success",
+  "metric": "aa_intelligence_index",
+  "source": "https://artificialanalysis.ai",
   "data": [
-    {"key": "llm", "name": "大语言模型", "description": "文本生成、对话等"},
-    {"key": "multimodal", "name": "多模态", "description": "支持图文音视频等多种模态"},
-    {"key": "vision", "name": "视觉", "description": "图像理解、生成"},
-    {"key": "audio", "name": "音频", "description": "语音识别、合成"},
-    {"key": "code", "name": "代码", "description": "代码生成、补全"}
-  ]
+    {
+      "rank": 1,
+      "rank_score": 57.3,
+      "model_id": "anthropic/claude-opus-4-7",
+      "model_name": "claude-opus-4-7",
+      "provider": "anthropic",
+      "provider_type": "closed",
+      "context_length": 1000000,
+      "pricing": { "input_per_1m_tokens": 5.0, "output_per_1m_tokens": 25.0, "currency": "USD" },
+      "evaluation": { "aa_intelligence_index": 57.3, "aa_coding_index": 52.5, ... }
+    }
+  ],
+  "total": 44,
+  "page": 1,
+  "page_size": 50,
+  "total_pages": 1
 }</pre>
+</div>
+
+<div class="endpoint" id="lb-categories">
+<h2><span class="method get">GET</span> /api/leaderboard/categories</h2>
+<p class="desc">SuperCLUE 排行榜分类列表。</p>
+<h3>响应</h3>
+<pre>{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "general": [ { "key": "general_overall", "name": "总排行榜", "total": 24, ... } ],
+    "multimodal": [ { "key": "multimodal_image", "name": "总榜", "total": 21, ... } ]
+  }
+}</pre>
+</div>
+
+<div class="endpoint" id="lb-superclue">
+<h2><span class="method get">GET</span> /api/leaderboard/superclue/{category}</h2>
+<p class="desc">获取指定 SuperCLUE 排行榜数据，支持分页。</p>
+<h3>参数</h3>
+<table>
+<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
+<tr><td>category</td><td>string</td><td>是</td><td>分类 key（路径参数），如 general_overall</td></tr>
+<tr><td>page</td><td>int</td><td>否</td><td>页码，默认1</td></tr>
+<tr><td>page_size</td><td>int</td><td>否</td><td>每页条数，默认50，最大200</td></tr>
+</table>
+<h3>错误码</h3>
+<table>
+<tr><th>状态码</th><th>说明</th></tr>
+<tr><td>404</td><td>分类不存在</td></tr>
+</table>
 </div>
 
 <div class="endpoint" id="cost-calc">
@@ -347,7 +448,7 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
 <p class="desc">单个模型成本计算。</p>
 <h3>请求体</h3>
 <pre>{
-  "model_id": "gpt-4o",
+  "model_id": "openai/gpt-4o-2024-08-06",
   "input_tokens": 100000,
   "output_tokens": 50000,
   "quantity": 10,
@@ -367,13 +468,13 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
   "code": 200,
   "message": "success",
   "data": {
-    "model_id": "gpt-4o",
-    "model_name": "GPT-4o",
+    "model_id": "openai/gpt-4o-2024-08-06",
+    "model_name": "OpenAI: GPT-4o (2024-08-06)",
     "provider": "openai",
     "input_tokens": 100000,
     "output_tokens": 50000,
     "quantity": 10,
-    "pricing": {定价信息},
+    "pricing": { ... },
     "cost_breakdown": {
       "input_cost": 1.8125,
       "output_cost": 3.625,
@@ -391,7 +492,7 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
 <p class="desc">多模型成本对比。</p>
 <h3>请求体</h3>
 <pre>{
-  "models": ["gpt-4o", "claude-3-opus", "qwen-max"],
+  "models": ["openai/gpt-4o-2024-08-06", "anthropic/claude-opus-4-7"],
   "input_tokens": 100000,
   "output_tokens": 50000,
   "quantity": 10,
@@ -412,13 +513,13 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
   "message": "success",
   "data": [
     {
-      "model_id": "gpt-4o",
-      "model_name": "GPT-4o",
+      "model_id": "openai/gpt-4o-2024-08-06",
+      "model_name": "OpenAI: GPT-4o (2024-08-06)",
       "provider": "openai",
       "input_cost": 1.8125,
       "output_cost": 3.625,
       "total_cost": 5.4375,
-      "pricing": {定价信息},
+      "pricing": { ... },
       "quantity": 10
     }
   ],
@@ -427,342 +528,9 @@ last_updated: 最后更新日期（YYYY-MM-DD）</pre>
     "output_tokens": 50000,
     "quantity": 10,
     "currency": "CNY",
-    "cheapest_model": "gpt-4o"
+    "cheapest_model": "openai/gpt-4o-2024-08-06"
   }
 }</pre>
-</div>
-<div class="endpoint" id="search-suggest">
-<h2><span class="method get">GET</span> /api/search/suggest</h2>
-<p class="desc">搜索联想和推荐。用于输入框实时联想、空状态推荐。</p>
-<h3>查询参数</h3>
-<table>
-<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
-<tr><td>q</td><td>string</td><td>是</td><td>搜索关键词</td></tr>
-</table>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "suggestions": [
-      {
-        "model_id": "gpt-4o",
-        "model_name": "GPT-4o",
-        "provider": "openai",
-        "pricing": {"input_per_1m_tokens": 2.5, "output_per_1m_tokens": 10},
-        "tags": ["vision", "coding", "multimodal"]
-      }
-    ],
-    "popular_tags": [
-      {"tag": "coding", "count": 8},
-      {"tag": "vision", "count": 5}
-    ]
-  }
-}</pre>
-</div>
-
-<div class="endpoint" id="calc-scenarios">
-<h2><span class="method get">GET</span> /api/calculator/scenarios</h2>
-<p class="desc">场景成本模拟器。支持多步骤 AI 调用流程的成本计算（TCO）。</p>
-
-<h3>场景管理</h3>
-<table>
-<tr><th>方法</th><th>路径</th><th>说明</th></tr>
-<tr><td>POST</td><td>/api/calculator/scenarios</td><td>新建场景，请求体 {"name": "场景名"}</td></tr>
-<tr><td>GET</td><td>/api/calculator/scenarios</td><td>场景列表</td></tr>
-<tr><td>GET</td><td>/api/calculator/scenarios/{scenario_id}</td><td>获取场景详情（含步骤和成本汇总）</td></tr>
-<tr><td>PUT</td><td>/api/calculator/scenarios/{scenario_id}</td><td>更新场景名称</td></tr>
-<tr><td>DELETE</td><td>/api/calculator/scenarios/{scenario_id}</td><td>删除场景</td></tr>
-<tr><td>POST</td><td>/api/calculator/scenarios/{scenario_id}/duplicate</td><td>复制场景</td></tr>
-</table>
-
-<h3>步骤管理</h3>
-<table>
-<tr><th>方法</th><th>路径</th><th>说明</th></tr>
-<tr><td>POST</td><td>/api/calculator/scenarios/{scenario_id}/steps</td><td>添加步骤</td></tr>
-<tr><td>GET</td><td>/api/calculator/scenarios/{scenario_id}/steps</td><td>获取步骤列表</td></tr>
-<tr><td>PUT</td><td>/api/calculator/steps/{step_id}</td><td>更新步骤</td></tr>
-<tr><td>DELETE</td><td>/api/calculator/steps/{step_id}</td><td>删除步骤</td></tr>
-<tr><td>POST</td><td>/api/calculator/scenarios/{scenario_id}/reorder</td><td>调整步骤顺序</td></tr>
-</table>
-
-<h3>步骤字段</h3>
-<table>
-<tr><th>字段</th><th>类型</th><th>说明</th></tr>
-<tr><td>task_type</td><td>string</td><td>任务类型，如"意图识别"、"内容生成"</td></tr>
-<tr><td>model_id</td><td>string</td><td>模型 ID</td></tr>
-<tr><td>input_tokens</td><td>int</td><td>输入 token 数量</td></tr>
-<tr><td>output_tokens</td><td>int</td><td>输出 token 数量</td></tr>
-<tr><td>daily_calls</td><td>int</td><td>调用量/天</td></tr>
-<tr><td>cache_hit_rate</td><td>float</td><td>缓存命中率，0-100</td></tr>
-</table>
-
-<h3>成本计算公式</h3>
-<table>
-<tr><th>指标</th><th>公式</th></tr>
-<tr><td>单次成本</td><td>(输入tokens × 输入单价 + 输出tokens × 输出单价) / 1,000,000</td></tr>
-<tr><td>日成本</td><td>单次成本 × 调用量 × (1 - 缓存命中率)</td></tr>
-<tr><td>月成本</td><td>日成本 × 30</td></tr>
-<tr><td>年成本</td><td>月成本 × 12</td></tr>
-</table>
-
-<h3>场景对比</h3>
-<table>
-<tr><th>方法</th><th>路径</th><th>说明</th></tr>
-<tr><td>POST</td><td>/api/calculator/compare</td><td>对比多个场景，请求体 ["场景ID1", "场景ID2"]</td></tr>
-</table>
-</div>
-
-<div class="endpoint" id="calc-templates">
-<h2><span class="method get">GET</span> /api/calculator/templates</h2>
-<p class="desc">预置场景模板。一键生成完整表格。</p>
-<h3>响应</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": [
-    {
-      "name": "客服机器人",
-      "description": "完整的客服场景成本计算",
-      "steps": [
-        {"task_type": "意图识别", "input_tokens": 200, "output_tokens": 50, "daily_calls": 1000, "cache_hit_rate": 0},
-        {"task_type": "知识检索", "input_tokens": 500, "output_tokens": 200, "daily_calls": 800, "cache_hit_rate": 30},
-        {"task_type": "回复生成", "input_tokens": 300, "output_tokens": 500, "daily_calls": 800, "cache_hit_rate": 0}
-      ]
-    },
-    {"name": "内容审核链路", ...},
-    {"name": "翻译流程", ...},
-    {"name": "代码助手", ...}
-  ]
-}</pre>
-
-<h3>应用模板</h3>
-<table>
-<tr><th>方法</th><th>路径</th><th>说明</th></tr>
-<tr><td>POST</td><td>/api/calculator/templates/{模板名}/apply</td><td>根据模板创建场景</td></tr>
-</table>
-</div>
-
-<div class="endpoint" id="lb-categories">
-<h2><span class="method get">GET</span> /api/leaderboard/categories</h2>
-<p class="desc">获取排行榜分类列表，数据来源于 SuperCLUE 官网，分为通用榜和多模态榜两大类。</p>
-<h3>请求参数</h3>
-<p>无</p>
-<h3>返回结果</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "general": [
-      {
-        "key": "general_overall",
-        "name": "总排行榜",
-        "group": "general",
-        "source": "excel",
-        "source_date": "2026年3月",
-        "total": 24,
-        "headers": ["排名", "模型名称", "机构", "开/闭源", "总分", ...],
-        "crawl_time": "2026-04-30T05:31:37"
-      }
-    ],
-    "multimodal": [
-      {
-        "key": "multimodal_image",
-        "name": "总榜",
-        "group": "multimodal",
-        "source": "excel",
-        "source_date": "2026年3月",
-        "total": 21,
-        "headers": ["排名", "模型名称", "机构", "总分", ...],
-        "crawl_time": "2026-04-30T07:12:39"
-      }
-    ]
-  }
-}</pre>
-<h3>分类 key 列表</h3>
-<table>
-<tr><th>分类</th><th>key</th><th>数据来源</th><th>说明</th></tr>
-<tr><td rowspan="5">通用榜</td><td>general_overall</td><td>Excel</td><td>总排行榜</td></tr>
-<tr><td>general_reasoning</td><td>Excel</td><td>推理模型总排行榜</td></tr>
-<tr><td>general_base</td><td>Excel</td><td>基础模型总排行榜</td></tr>
-<tr><td>general_reasoning_task</td><td>Excel</td><td>推理任务总排行榜</td></tr>
-<tr><td>general_opensource</td><td>Excel</td><td>开源排行榜</td></tr>
-<tr><td rowspan="2">多模态-文生图</td><td>multimodal_image</td><td>Excel</td><td>文生图总榜</td></tr>
-<tr><td>multimodal_image_1~5</td><td>Excel</td><td>图像质量/图文一致性/汉字生成/现实复现/创作与推理</td></tr>
-<tr><td rowspan="2">多模态-图像编辑</td><td>multimodal_edit</td><td>Excel</td><td>图像编辑总榜</td></tr>
-<tr><td>multimodal_edit_1~3</td><td>Excel</td><td>通用能力/应用场景能力/测评模型列表</td></tr>
-</table>
-</div>
-
-<div class="endpoint" id="lb-data">
-<h2><span class="method get">GET</span> /api/leaderboard/:category</h2>
-<p class="desc">获取指定排行榜的数据，支持分页。数据原封不动来自 SuperCLUE 官网，保留原始列名。</p>
-<h3>请求参数</h3>
-<table>
-<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
-<tr><td>category</td><td>string</td><td>是</td><td>排行榜分类 key（路径参数）</td></tr>
-<tr><td>page</td><td>int</td><td>否</td><td>页码，默认1</td></tr>
-<tr><td>page_size</td><td>int</td><td>否</td><td>每页条数，默认50，最大200</td></tr>
-</table>
-<h3>返回结果</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "key": "general_overall",
-    "name": "总排行榜",
-    "group": "general",
-    "source": "excel",
-    "source_date": "2026年3月",
-    "headers": ["排名", "模型名称", "机构", "开/闭源", "总分", "数学推理", ...],
-    "crawl_time": "2026-04-30T05:31:37",
-    "rows": [
-      {
-        "排名": "-",
-        "模型名称": "Claude-Opus-4.6(max)",
-        "机构": "Anthropic",
-        "开/闭源": "闭源",
-        "总分": 77.02,
-        "数学推理": 85.71,
-        "幻觉控制": 82.95,
-        "科学推理": 85.37,
-        "精确指令遵循": 47.57,
-        "代码生成": 71.15,
-        "智能体(任务规划)": 89.35,
-        "属地": "海外",
-        "使用方式": "API",
-        "是否推理": "是",
-        "发布日期": "2026.3.30"
-      }
-    ],
-    "total": 24,
-    "page": 1,
-    "page_size": 50,
-    "total_pages": 1
-  }
-}</pre>
-<h3>说明</h3>
-<p>所有数据均来自 SuperCLUE 官网 Excel 文件，rows 保留原始中文列名。列名已清洗（去除换行符和多余空格），"模型"统一为"模型名称"，"分数"统一为"总分"。</p>
-<h3>错误码</h3>
-<table>
-<tr><th>状态码</th><th>说明</th></tr>
-<tr><td>404</td><td>分类不存在</td></tr>
-</table>
-</div>
-
-<div class="endpoint" id="lb-detail">
-<h2><span class="method get">GET</span> /api/leaderboard/:category/all</h2>
-<p class="desc">获取指定排行榜的全量数据（不分页），包含元信息和所有行数据。</p>
-<h3>请求参数</h3>
-<table>
-<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
-<tr><td>category</td><td>string</td><td>是</td><td>排行榜分类 key（路径参数）</td></tr>
-</table>
-<h3>返回结果</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "key": "general_overall",
-    "name": "总排行榜",
-    "group": "general",
-    "source": "excel",
-    "source_date": "2026年3月",
-    "headers": ["排名", "模型名称", ...],
-    "crawl_time": "2026-04-30T05:31:37",
-    "rows": [ ... 全部数据 ... ]
-  }
-}</pre>
-</div>
-
-<div class="endpoint" id="model-marketplace">
-<h2><span class="method get">GET</span> /api/models/:id/marketplace</h2>
-<p class="desc">获取指定模型在多个供应商（OpenRouter等）的价格对比数据，包含官方定价和市场价。</p>
-<h3>请求参数</h3>
-<table>
-<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
-<tr><td>id</td><td>string</td><td>是</td><td>模型ID（路径参数），如 openai-gpt-4o</td></tr>
-</table>
-<h3>返回结果</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "model_id": "openai-gpt-4o",
-    "model_name": "OpenAI: GPT-4o",
-    "provider": "openai",
-    "official_pricing": {
-      "input_per_1m_tokens": 2.50,
-      "output_per_1m_tokens": 10.0,
-      "currency": "USD"
-    },
-    "marketplace": [
-      {
-        "id": 1,
-        "model_id": "openai-gpt-4o",
-        "marketplace": "openrouter",
-        "marketplace_model_id": "openai/gpt-4o",
-        "input_price": 2.50,
-        "output_price": 10.0,
-        "latency_ms": null,
-        "uptime": null,
-        "availability": null,
-        "updated_at": "2026-04-29T12:00:00"
-      }
-    ],
-    "marketplace_count": 1
-  }
-}</pre>
-<h3>说明</h3>
-<p>marketplace 字段返回该模型在各供应商平台的价格信息，目前支持 OpenRouter 平台数据。后续将扩展 Together AI、Fireworks AI 等平台。</p>
-</div>
-
-<div class="endpoint" id="marketplace-compare">
-<h2><span class="method get">GET</span> /api/marketplace/compare</h2>
-<p class="desc">跨模型、跨供应商价格对比，自动计算最低输入价、最低输出价、最低延迟、最高可用性。</p>
-<h3>请求参数</h3>
-<table>
-<tr><th>参数</th><th>类型</th><th>必填</th><th>说明</th></tr>
-<tr><td>models</td><td>string</td><td>是</td><td>逗号分隔的模型ID列表，最多10个，如 openai-gpt-4o,anthropic-claude-sonnet-4-20250514</td></tr>
-</table>
-<h3>返回结果</h3>
-<pre>{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "models": {
-      "openai-gpt-4o": [
-        {
-          "marketplace": "openrouter",
-          "input_price": 2.50,
-          "output_price": 10.0,
-          "latency_ms": null,
-          "uptime": null
-        }
-      ],
-      "anthropic-claude-sonnet-4-20250514": [
-        {
-          "marketplace": "openrouter",
-          "input_price": 3.00,
-          "output_price": 15.0,
-          "latency_ms": null,
-          "uptime": null
-        }
-      ]
-    },
-    "comparison": {
-      "cheapest_input": {"model_id": "openai-gpt-4o", "marketplace": "openrouter", "price": 2.50},
-      "cheapest_output": {"model_id": "openai-gpt-4o", "marketplace": "openrouter", "price": 10.0},
-      "best_latency": null,
-      "best_uptime": null
-    }
-  }
-}</pre>
-<h3>错误码</h3>
-<table>
-<tr><th>状态码</th><th>说明</th></tr>
-<tr><td>400</td><td>未提供模型ID或超过10个</td></tr>
-</table>
 </div>
 
 </div>

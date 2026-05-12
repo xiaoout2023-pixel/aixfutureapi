@@ -33,7 +33,7 @@ with open(DOCS_PATH, 'r', encoding='utf-8') as f:
 app = FastAPI(
     title="AI Model Pricing API",
     description="AI模型价格采集与对比系统",
-    version="0.3.0",
+    version="2.0.0",
     docs_url=None,
     redoc_url=None,
     openapi_url=None
@@ -47,7 +47,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Lazy initialization for Serverless environment
 _db = None
 _repo = None
 
@@ -57,6 +56,7 @@ def get_repo() -> ModelRepository:
         _db = TursoDB()
         _repo = ModelRepository(_db)
     return _repo
+
 
 class CostCalcRequest(BaseModel):
     model_id: str
@@ -72,148 +72,188 @@ class CostCompareRequest(BaseModel):
     quantity: int = 1
     currency: Optional[str] = "USD"
 
+
+@app.get("/")
+async def root():
+    return {
+        "name": "AI Model Pricing API",
+        "version": "2.0.0",
+        "docs": "/docs",
+        "endpoints": {
+            "models": "/api/models",
+            "model_detail": "/api/models/{model_id}",
+            "model_pricing": "/api/models/{model_id}/pricing",
+            "model_evaluations": "/api/models/{model_id}/evaluations",
+            "providers": "/api/providers",
+            "search": "/api/search?q=gpt",
+            "leaderboard": "/api/leaderboard?metric=aa_intelligence_index",
+            "compare": "/api/compare?models=openai/gpt-4o-2024-08-06,anthropic/claude-opus-4-7",
+            "cost_calculate": "POST /api/cost/calculate",
+            "cost_compare": "POST /api/cost/compare",
+            "exchange_rate": "/api/exchange-rate",
+            "status": "/api/status",
+            "superclue_categories": "/api/leaderboard/categories",
+            "superclue_data": "/api/leaderboard/superclue/{category}",
+        }
+    }
+
+
+@app.get("/api/status")
+async def get_status():
+    status = await get_repo().get_status()
+    return {"code": 200, "message": "success", "data": status}
+
+
 @app.get("/api/models")
 async def list_models(
     provider: Optional[str] = Query(None),
+    provider_type: Optional[str] = Query(None, description="open_source or closed"),
+    capability: Optional[str] = Query(None, description="text/code/reasoning/vision/image_gen/audio/audio_gen/video/tool_use/structured_output/streaming/batch/fine_tuning/embedding"),
     status: Optional[str] = Query(None),
-    tags: Optional[str] = Query(None),
-    min_context: Optional[int] = Query(None),
-    max_input_price: Optional[float] = Query(None),
-    max_output_price: Optional[float] = Query(None),
-    has_vision: Optional[bool] = Query(None),
-    has_tool_calling: Optional[bool] = Query(None),
-    type: Optional[str] = Query(None, description="模型类型：llm(大语言模型)/multimodal(多模态)/vision(视觉)/audio(音频)/code(代码)"),
-    access: Optional[str] = Query(None, description="开源类型：open(开源)/closed(闭源)"),
-    sort_by: Optional[str] = Query("overall_score", pattern="^(overall_score|cost_efficiency_score|input_price|output_price|context_length)$"),
+    q: Optional[str] = Query(None, description="搜索关键词"),
+    sort_by: Optional[str] = Query("aa_intelligence_index", description="排序字段: aa_intelligence_index/lmarena_elo/input_price/output_price/context_length/tokens_per_second"),
     sort_order: Optional[str] = Query("desc", pattern="^(asc|desc)$"),
+    min_input_price: Optional[float] = Query(None),
+    max_input_price: Optional[float] = Query(None),
     page: Optional[int] = Query(1, ge=1),
-    page_size: Optional[int] = Query(20, ge=1, le=100)
+    page_size: Optional[int] = Query(20, ge=1, le=100),
 ):
-    filters = {
-        "provider": provider,
-        "status": status,
-        "min_context": min_context,
-        "max_input_price": max_input_price,
-        "max_output_price": max_output_price,
-        "has_vision": has_vision,
-        "has_tool_calling": has_tool_calling,
-        "sort_by": sort_by,
-        "sort_order": sort_order
-    }
-    if tags:
-        filters["tags"] = [t.strip() for t in tags.split(",")]
-    
-    models = await get_repo().search_models(filters)
-    
-    # Apply type filter
-    if type:
-        type_map = {
-            "llm": lambda m: m.get("capabilities", {}).get("text") and not (m.get("capabilities", {}).get("vision") or m.get("capabilities", {}).get("audio")),
-            "multimodal": lambda m: m.get("capabilities", {}).get("vision") or m.get("capabilities", {}).get("audio"),
-            "vision": lambda m: m.get("capabilities", {}).get("vision") and not m.get("capabilities", {}).get("audio"),
-            "audio": lambda m: m.get("capabilities", {}).get("audio"),
-            "code": lambda m: m.get("capabilities", {}).get("code")
-        }
-        filter_fn = type_map.get(type)
-        if filter_fn:
-            models = [m for m in models if filter_fn(m)]
-    
-    # Apply access filter
-    if access:
-        open_source_providers = {"openai", "anthropic", "google", "mistral"}
-        if access == "open":
-            models = [m for m in models if m.get("provider") not in open_source_providers]
-        elif access == "closed":
-            models = [m for m in models if m.get("provider") in open_source_providers]
-    
-    # Pagination
-    total = len(models)
-    start = (page - 1) * page_size
-    end = start + page_size
-    models = models[start:end]
-    
-    return {
-        "code": 200,
-        "message": "success",
-        "data": models,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size
-    }
+    result = await get_repo().get_models(
+        page=page, page_size=page_size,
+        provider=provider, capability=capability,
+        provider_type=provider_type, status=status, q=q,
+        sort_by=sort_by, sort_order=sort_order,
+        min_input_price=min_input_price, max_input_price=max_input_price,
+    )
+    return {"code": 200, "message": "success", **result}
 
-@app.get("/api/models/{model_id}")
+
+@app.get("/api/models/{model_id:path}/pricing")
+async def get_model_pricing(
+    model_id: str,
+    channel: Optional[str] = Query(None, description="official/marketplace/reseller"),
+    region: Optional[str] = Query(None, description="global/us/eu/ap"),
+):
+    pricing = await get_repo().get_model_pricing(model_id, channel=channel, region=region)
+    if not pricing:
+        raise HTTPException(status_code=404, detail=f"No pricing data for '{model_id}'")
+    return {"code": 200, "message": "success", "data": pricing, "total": len(pricing)}
+
+
+@app.get("/api/models/{model_id:path}/evaluations")
+async def get_model_evaluations(model_id: str):
+    evaluations = await get_repo().get_model_evaluations(model_id)
+    if not evaluations:
+        raise HTTPException(status_code=404, detail=f"No evaluation data for '{model_id}'")
+    return {"code": 200, "message": "success", "data": evaluations, "total": len(evaluations)}
+
+
+@app.get("/api/models/{model_id:path}")
 async def get_model(model_id: str):
     model = await get_repo().get_model(model_id)
     if not model:
-        raise HTTPException(status_code=404, detail=f"Model {model_id} not found")
+        raise HTTPException(status_code=404, detail=f"Model '{model_id}' not found")
     return {"code": 200, "message": "success", "data": model}
 
-@app.get("/api/compare")
-async def compare_models(
-    models: str = Query(..., description="模型ID，逗号分隔")
-):
-    model_ids = [m.strip() for m in models.split(",")]
-    
-    result = []
-    for model_id in model_ids:
-        model = await get_repo().get_model(model_id)
-        if model:
-            result.append(model)
-    
-    if not result:
-        raise HTTPException(status_code=404, detail="No models found")
-    
-    meta = {}
-    if result:
-        cheapest_input = min(result, key=lambda x: x.get("pricing", {}).get("input_per_1m_tokens", float("inf")))
-        cheapest_output = min(result, key=lambda x: x.get("pricing", {}).get("output_per_1m_tokens", float("inf")))
-        longest_context = max(result, key=lambda x: x.get("capabilities", {}).get("context_length", 0))
-        best_overall = max(result, key=lambda x: x.get("scores", {}).get("overall_score", 0))
-        
-        meta = {
-            "cheapest_input": cheapest_input.get("model_id"),
-            "cheapest_output": cheapest_output.get("model_id"),
-            "longest_context": longest_context.get("model_id"),
-            "best_overall": best_overall.get("model_id")
-        }
-    
-    return {"code": 200, "message": "success", "data": result, "meta": meta}
 
 @app.get("/api/providers")
 async def list_providers():
     providers = await get_repo().get_providers()
     return {"code": 200, "message": "success", "data": providers}
 
+
+@app.get("/api/leaderboard")
+async def get_leaderboard(
+    metric: Optional[str] = Query("aa_intelligence_index", description="排名指标: aa_intelligence_index/aa_coding_index/aa_math_index/lmarena_elo/lmarena_coding/lmarena_math/lmarena_hard/tokens_per_second"),
+    provider_type: Optional[str] = Query(None, description="open_source or closed"),
+    page: Optional[int] = Query(1, ge=1),
+    page_size: Optional[int] = Query(50, ge=1, le=200),
+):
+    result = await get_repo().get_leaderboard(
+        metric=metric, page=page, page_size=page_size,
+        provider_type=provider_type,
+    )
+    return {"code": 200, "message": "success", **result}
+
+
+@app.get("/api/compare")
+async def compare_models(
+    models: str = Query(..., description="逗号分隔的模型ID列表，如 openai/gpt-4o-2024-08-06,anthropic/claude-opus-4-7"),
+):
+    model_ids = [m.strip() for m in models.split(",") if m.strip()]
+    if not model_ids:
+        raise HTTPException(status_code=400, detail="请提供至少一个模型ID")
+    if len(model_ids) > 10:
+        raise HTTPException(status_code=400, detail="最多对比10个模型")
+
+    results = []
+    for model_id in model_ids:
+        model = await get_repo().get_model(model_id)
+        if model:
+            results.append(model)
+
+    if not results:
+        raise HTTPException(status_code=404, detail="未找到任何模型")
+
+    meta = {}
+    pricing_models = [(r.get("model_id", ""), r.get("pricing", {})) for r in results if r.get("pricing")]
+    if pricing_models:
+        cheapest_input = min(pricing_models, key=lambda x: x[1].get("input_per_1m_tokens", float("inf")))
+        cheapest_output = min(pricing_models, key=lambda x: x[1].get("output_per_1m_tokens", float("inf")))
+        meta["cheapest_input"] = cheapest_input[0]
+        meta["cheapest_output"] = cheapest_output[0]
+
+    eval_models = [(r.get("model_id", ""), r.get("evaluation", {})) for r in results if r.get("evaluation")]
+    if eval_models:
+        best_intelligence = max(
+            eval_models,
+            key=lambda x: x[1].get("aa_intelligence_index") or 0
+        )
+        meta["best_intelligence"] = best_intelligence[0]
+
+    context_models = [(r.get("model_id", ""), r.get("context_length", 0)) for r in results]
+    if context_models:
+        longest_context = max(context_models, key=lambda x: x[1] or 0)
+        meta["longest_context"] = longest_context[0]
+
+    return {
+        "code": 200,
+        "message": "success",
+        "data": results,
+        "meta": meta,
+    }
+
+
+@app.get("/api/search")
+async def search_models(
+    q: str = Query(..., description="搜索关键词"),
+    limit: Optional[int] = Query(10, ge=1, le=50),
+):
+    result = await get_repo().search_models(q=q, limit=limit)
+    return {"code": 200, "message": "success", **result}
+
+
 @app.post("/api/cost/calculate")
 async def calculate_cost(request: CostCalcRequest):
     model = await get_repo().get_model(request.model_id)
     if not model:
-        raise HTTPException(status_code=404, detail=f"Model {request.model_id} not found")
-    
-    pricing = model.get("pricing", {})
+        raise HTTPException(status_code=404, detail=f"Model '{request.model_id}' not found")
+
+    pricing = model.get("pricing") or {}
     input_price = pricing.get("input_per_1m_tokens", 0)
     output_price = pricing.get("output_per_1m_tokens", 0)
-    
+
     input_cost = (request.input_tokens / 1000000) * input_price * request.quantity
     output_cost = (request.output_tokens / 1000000) * output_price * request.quantity
     total_cost = input_cost + output_cost
-    
-    # Currency conversion
+
     currency = request.currency.upper()
-    exchange_rates = {
-        "USD": 1.0,
-        "CNY": 7.25,
-        "EUR": 0.92,
-        "JPY": 149.5,
-        "GBP": 0.79
-    }
+    exchange_rates = {"USD": 1.0, "CNY": 7.25, "EUR": 0.92, "JPY": 149.5, "GBP": 0.79}
     rate = exchange_rates.get(currency, 1.0)
     currency_symbol = {"USD": "$", "CNY": "¥", "EUR": "€", "JPY": "¥", "GBP": "£"}.get(currency, currency)
-    
+
     return {
-        "code": 200,
-        "message": "success",
+        "code": 200, "message": "success",
         "data": {
             "model_id": request.model_id,
             "model_name": model.get("model_name"),
@@ -228,10 +268,11 @@ async def calculate_cost(request: CostCalcRequest):
                 "total_cost": round(total_cost * rate, 6),
                 "currency": currency,
                 "currency_symbol": currency_symbol,
-                "exchange_rate": rate if currency != "USD" else None
+                "exchange_rate": rate if currency != "USD" else None,
             }
         }
     }
+
 
 @app.post("/api/cost/compare")
 async def compare_cost(request: CostCompareRequest):
@@ -240,24 +281,16 @@ async def compare_cost(request: CostCompareRequest):
         model = await get_repo().get_model(model_id)
         if not model:
             continue
-        
-        pricing = model.get("pricing", {})
+        pricing = model.get("pricing") or {}
         input_price = pricing.get("input_per_1m_tokens", 0)
         output_price = pricing.get("output_per_1m_tokens", 0)
-        
         input_cost = (request.input_tokens / 1000000) * input_price * request.quantity
         output_cost = (request.output_tokens / 1000000) * output_price * request.quantity
-        
+
         currency = request.currency.upper()
-        exchange_rates = {
-            "USD": 1.0,
-            "CNY": 7.25,
-            "EUR": 0.92,
-            "JPY": 149.5,
-            "GBP": 0.79
-        }
+        exchange_rates = {"USD": 1.0, "CNY": 7.25, "EUR": 0.92, "JPY": 149.5, "GBP": 0.79}
         rate = exchange_rates.get(currency, 1.0)
-        
+
         results.append({
             "model_id": model_id,
             "model_name": model.get("model_name"),
@@ -266,415 +299,41 @@ async def compare_cost(request: CostCompareRequest):
             "output_cost": round(output_cost * rate, 6),
             "total_cost": round((input_cost + output_cost) * rate, 6),
             "pricing": pricing,
-            "quantity": request.quantity
+            "quantity": request.quantity,
         })
-    
+
     results.sort(key=lambda x: x["total_cost"])
-    
     cheapest = results[0]["model_id"] if results else None
-    
+
     return {
-        "code": 200,
-        "message": "success",
+        "code": 200, "message": "success",
         "data": results,
         "meta": {
             "input_tokens": request.input_tokens,
             "output_tokens": request.output_tokens,
             "quantity": request.quantity,
             "currency": currency,
-            "cheapest_model": cheapest
+            "cheapest_model": cheapest,
         }
     }
+
 
 @app.get("/api/exchange-rate")
 async def get_exchange_rate():
     return {
-        "code": 200,
-        "message": "success",
+        "code": 200, "message": "success",
         "data": {
             "base": "USD",
-            "rates": {
-                "CNY": 7.25,
-                "EUR": 0.92,
-                "JPY": 149.5,
-                "GBP": 0.79,
-                "USD": 1.0
-            },
-            "updated_at": "2026-04-26"
+            "rates": {"CNY": 7.25, "EUR": 0.92, "JPY": 149.5, "GBP": 0.79, "USD": 1.0},
+            "updated_at": "2026-04-26",
         }
     }
 
-@app.get("/api/model-types")
-async def get_model_types():
-    return {
-        "code": 200,
-        "message": "success",
-        "data": [
-            {"key": "llm", "name": "大语言模型", "description": "文本生成、对话等"},
-            {"key": "multimodal", "name": "多模态", "description": "支持图文音视频等多种模态"},
-            {"key": "vision", "name": "视觉", "description": "图像理解、生成"},
-            {"key": "audio", "name": "音频", "description": "语音识别、合成"},
-            {"key": "code", "name": "代码", "description": "代码生成、补全"}
-        ]
-    }
-
-@app.get("/api/search")
-async def search_models(
-    q: Optional[str] = Query(None, description="搜索关键词：模型名、厂商名、标签"),
-    task: Optional[str] = Query(None, description="任务类型：text_classification/code_generation/translation/reasoning/summarization/multimodal"),
-    provider: Optional[str] = Query(None, description="厂商筛选，逗号分隔，如 openai,anthropic"),
-    tags: Optional[str] = Query(None, description="标签，逗号分隔"),
-    text_generation: Optional[bool] = Query(None),
-    code_generation: Optional[bool] = Query(None),
-    vision: Optional[bool] = Query(None),
-    audio: Optional[bool] = Query(None),
-    multimodal: Optional[bool] = Query(None),
-    tool_calling: Optional[bool] = Query(None),
-    reasoning_level: Optional[str] = Query(None, pattern="^(low|medium|high)$"),
-    min_input_price: Optional[float] = Query(None, description="输入价格下限"),
-    max_input_price: Optional[float] = Query(None, description="输入价格上限"),
-    min_output_price: Optional[float] = Query(None, description="输出价格下限"),
-    max_output_price: Optional[float] = Query(None, description="输出价格上限"),
-    sort_by: Optional[str] = Query("cost_efficiency_score", pattern="^(overall_score|cost_efficiency_score|input_price|output_price|context_length)$"),
-    sort_order: Optional[str] = Query("desc", pattern="^(asc|desc)$"),
-    page: Optional[int] = Query(1, ge=1),
-    page_size: Optional[int] = Query(20, ge=1, le=100)
-):
-    task_to_tags = {
-        "text_classification": ["reasoning"],
-        "code_generation": ["coding"],
-        "translation": ["fast"],
-        "reasoning": ["reasoning"],
-        "summarization": ["fast"],
-        "multimodal": ["multimodal"]
-    }
-    task_to_capability = {
-        "text_classification": "text_generation",
-        "code_generation": "code_generation",
-        "translation": "text_generation",
-        "reasoning": None,
-        "summarization": "text_generation",
-        "multimodal": "multimodal"
-    }
-    task_to_reasoning = {
-        "reasoning": "high"
-    }
-
-    filters = {
-        "has_vision": vision,
-        "has_tool_calling": tool_calling,
-        "text_generation": text_generation,
-        "code_generation": code_generation,
-        "audio": audio,
-        "multimodal": multimodal,
-        "reasoning_level": reasoning_level,
-        "min_input_price": min_input_price,
-        "max_input_price": max_input_price,
-        "min_output_price": min_output_price,
-        "max_output_price": max_output_price,
-        "sort_by": sort_by,
-        "sort_order": sort_order
-    }
-
-    if q:
-        filters["q"] = q
-
-    if task:
-        filter_tags = task_to_tags.get(task, [])
-        cap = task_to_capability.get(task)
-        reason_level = task_to_reasoning.get(task)
-        if filter_tags:
-            filters["tags"] = filter_tags
-        if cap and code_generation is None and text_generation is None:
-            if cap == "code_generation":
-                filters["code_generation"] = True
-            elif cap == "text_generation":
-                filters["text_generation"] = True
-            elif cap == "multimodal":
-                filters["multimodal"] = True
-        if reason_level and not reasoning_level:
-            filters["reasoning_level"] = reason_level
-
-    if tags:
-        existing_tags = filters.get("tags", [])
-        new_tags = [t.strip() for t in tags.split(",")]
-        filters["tags"] = existing_tags + new_tags
-
-    models = await get_repo().search_models(filters)
-
-    if provider:
-        provider_list = [p.strip().lower() for p in provider.split(",")]
-        models = [m for m in models if m.get("provider", "").lower() in provider_list]
-
-    if not models and not q and not task:
-        recommendations = await get_repo().get_recommendations()
-        return {
-            "code": 200,
-            "message": "success",
-            "data": [],
-            "total": 0,
-            "suggestions": recommendations,
-            "empty_state": True
-        }
-
-    total = len(models)
-    start = (page - 1) * page_size
-    end = start + page_size
-    models = models[start:end]
-
-    result = {
-        "code": 200,
-        "message": "success",
-        "data": models,
-        "total": total,
-        "page": page,
-        "page_size": page_size,
-        "total_pages": (total + page_size - 1) // page_size
-    }
-
-    if not models and (q or task):
-        suggestions = await get_repo().get_search_suggestions(q or task)
-        result["suggestions"] = suggestions["suggestions"]
-
-    return result
-
-@app.get("/api/search/suggest")
-async def search_suggest(q: str = Query(..., description="搜索关键词")):
-    if len(q) < 1:
-        return {"code": 200, "message": "success", "data": {"suggestions": [], "popular_tags": []}}
-    
-    suggestions = await get_repo().get_search_suggestions(q)
-    
-    all_models = await get_repo().get_all_models()
-    tag_counts = {}
-    for m in all_models:
-        for tag in m.get("tags", []):
-            tag_counts[tag] = tag_counts.get(tag, 0) + 1
-    
-    popular_tags = sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:8]
-    
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "suggestions": suggestions["suggestions"],
-            "popular_tags": [{"tag": t, "count": c} for t, c in popular_tags]
-        }
-    }
-
-@app.get("/api/status")
-async def get_status():
-    models = await get_repo().get_all_models()
-    providers = await get_repo().get_providers()
-    
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "total_models": len(models),
-            "providers": len(providers),
-            "provider_list": [p["provider"] for p in providers]
-        }
-    }
 
 @app.get("/docs")
 async def custom_docs():
     return Response(content=DOCS_HTML, media_type="text/html; charset=utf-8")
 
-@app.get("/")
-async def root():
-    return {
-        "name": "AI Model Pricing API",
-        "version": "0.3.0",
-        "docs": "/docs",
-        "endpoints": {
-            "models": "/api/models",
-            "model_detail": "/api/models/{model_id}",
-            "compare": "/api/compare?models=gpt-4o,claude-3-opus",
-            "providers": "/api/providers",
-            "search": "/api/search?tags=vision,coding",
-            "cost_calculate": "POST /api/cost/calculate",
-            "cost_compare": "POST /api/cost/compare",
-            "exchange_rate": "/api/exchange-rate",
-            "model_types": "/api/model-types",
-            "status": "/api/status",
-            "scenarios": "/api/calculator/scenarios",
-            "calculator_templates": "/api/calculator/templates",
-            "leaderboard_categories": "/api/leaderboard/categories",
-            "leaderboard": "/api/leaderboard/{category}",
-            "model_marketplace": "/api/models/{model_id}/marketplace",
-            "marketplace_compare": "/api/marketplace/compare?models=model1,model2"
-        }
-    }
-
-# ========== Calculator Pro: Scenario Cost Simulator ==========
-
-class ScenarioCreate(BaseModel):
-    name: str
-
-class ScenarioUpdate(BaseModel):
-    name: str
-
-class StepCreate(BaseModel):
-    scenario_id: str
-    task_type: Optional[str] = ""
-    model_id: Optional[str] = ""
-    input_tokens: Optional[int] = 0
-    output_tokens: Optional[int] = 0
-    daily_calls: Optional[int] = 1
-    cache_hit_rate: Optional[float] = 0.0
-
-class StepUpdate(BaseModel):
-    task_type: Optional[str] = ""
-    model_id: Optional[str] = ""
-    input_tokens: Optional[int] = 0
-    output_tokens: Optional[int] = 0
-    daily_calls: Optional[int] = 1
-    cache_hit_rate: Optional[float] = 0.0
-
-class StepReorder(BaseModel):
-    id: str
-    step_order: int
-
-@app.post("/api/calculator/scenarios")
-async def create_scenario(data: ScenarioCreate):
-    scenario = await get_repo().create_scenario(data.name)
-    return {"code": 200, "message": "success", "data": scenario}
-
-@app.get("/api/calculator/scenarios")
-async def list_scenarios():
-    scenarios = await get_repo().get_all_scenarios()
-    return {"code": 200, "message": "success", "data": scenarios, "total": len(scenarios)}
-
-@app.get("/api/calculator/scenarios/{scenario_id}")
-async def get_scenario(scenario_id: str):
-    scenario = await get_repo().get_scenario_with_costs(scenario_id)
-    if not scenario:
-        raise HTTPException(status_code=404, detail="Scenario not found")
-    return {"code": 200, "message": "success", "data": scenario}
-
-@app.put("/api/calculator/scenarios/{scenario_id}")
-async def update_scenario(scenario_id: str, data: ScenarioUpdate):
-    scenario = await get_repo().update_scenario(scenario_id, data.name)
-    if not scenario:
-        raise HTTPException(status_code=404, detail="Scenario not found")
-    return {"code": 200, "message": "success", "data": scenario}
-
-@app.delete("/api/calculator/scenarios/{scenario_id}")
-async def delete_scenario(scenario_id: str):
-    await get_repo().delete_scenario(scenario_id)
-    return {"code": 200, "message": "success"}
-
-@app.post("/api/calculator/scenarios/{scenario_id}/steps")
-async def add_step(scenario_id: str, data: StepCreate):
-    step_data = data.dict()
-    step_data["scenario_id"] = scenario_id
-    existing_steps = await get_repo().get_scenario_steps(scenario_id)
-    step_data["step_order"] = len(existing_steps)
-    step = await get_repo().add_step(step_data)
-    return {"code": 200, "message": "success", "data": step}
-
-@app.get("/api/calculator/scenarios/{scenario_id}/steps")
-async def list_steps(scenario_id: str):
-    steps = await get_repo().get_scenario_steps(scenario_id)
-    return {"code": 200, "message": "success", "data": steps, "total": len(steps)}
-
-@app.put("/api/calculator/steps/{step_id}")
-async def update_step(step_id: str, data: StepUpdate):
-    step = await get_repo().update_step(step_id, data.dict())
-    if not step:
-        raise HTTPException(status_code=404, detail="Step not found")
-    return {"code": 200, "message": "success", "data": step}
-
-@app.delete("/api/calculator/steps/{step_id}")
-async def delete_step(step_id: str):
-    await get_repo().delete_step(step_id)
-    return {"code": 200, "message": "success"}
-
-@app.post("/api/calculator/scenarios/{scenario_id}/reorder")
-async def reorder_steps(scenario_id: str, data: List[StepReorder]):
-    steps = await get_repo().reorder_steps(scenario_id, [s.dict() for s in data])
-    return {"code": 200, "message": "success", "data": steps}
-
-@app.post("/api/calculator/scenarios/{scenario_id}/duplicate")
-async def duplicate_scenario(scenario_id: str):
-    scenario = await get_repo().get_scenario(scenario_id)
-    if not scenario:
-        raise HTTPException(status_code=404, detail="Scenario not found")
-    
-    from datetime import datetime
-    now = datetime.now().isoformat()
-    new_name = f"{scenario['name']} (副本)"
-    new_scenario = await get_repo().create_scenario(new_name)
-    
-    steps = await get_repo().get_scenario_steps(scenario_id)
-    for i, step in enumerate(steps):
-        step_data = {
-            "scenario_id": new_scenario["id"],
-            "step_order": i,
-            "task_type": step.get("task_type", ""),
-            "model_id": step.get("model_id", ""),
-            "input_tokens": step.get("input_tokens", 0),
-            "output_tokens": step.get("output_tokens", 0),
-            "daily_calls": step.get("daily_calls", 1),
-            "cache_hit_rate": step.get("cache_hit_rate", 0.0)
-        }
-        await get_repo().add_step(step_data)
-    
-    result = await get_repo().get_scenario_with_costs(new_scenario["id"])
-    return {"code": 200, "message": "success", "data": result}
-
-@app.get("/api/calculator/templates")
-async def get_templates():
-    templates = await get_repo().get_templates()
-    return {"code": 200, "message": "success", "data": templates}
-
-@app.post("/api/calculator/templates/{template_name}/apply")
-async def apply_template(template_name: str):
-    templates = await get_repo().get_templates()
-    template = None
-    for t in templates:
-        if t["name"] == template_name:
-            template = t
-            break
-    
-    if not template:
-        raise HTTPException(status_code=404, detail="Template not found")
-    
-    scenario = await get_repo().create_scenario(template["name"])
-    
-    for i, step_data in enumerate(template["steps"]):
-        step_data["scenario_id"] = scenario["id"]
-        step_data["step_order"] = i
-        await get_repo().add_step(step_data)
-    
-    result = await get_repo().get_scenario_with_costs(scenario["id"])
-    return {"code": 200, "message": "success", "data": result}
-
-@app.post("/api/calculator/compare")
-async def compare_scenarios(scenario_ids: List[str]):
-    results = []
-    for sid in scenario_ids:
-        scenario = await get_repo().get_scenario_with_costs(sid)
-        if scenario:
-            results.append({
-                "id": scenario["id"],
-                "name": scenario["name"],
-                "summary": scenario["summary"]
-            })
-    
-    if len(results) < 2:
-        return {"code": 200, "message": "success", "data": {"scenarios": results, "comparison": None}}
-    
-    comparison = {
-        "daily_cost_diff": round(results[0]["summary"]["total_daily_cost"] - results[1]["summary"]["total_daily_cost"], 4),
-        "monthly_cost_diff": round(results[0]["summary"]["total_monthly_cost"] - results[1]["summary"]["total_monthly_cost"], 2),
-        "yearly_cost_diff": round(results[0]["summary"]["total_yearly_cost"] - results[1]["summary"]["total_yearly_cost"], 2)
-    }
-    
-    return {"code": 200, "message": "success", "data": {"scenarios": results, "comparison": comparison}}
-
-# ========== Leaderboard: SuperCLUE Rankings (JSON File Based) ==========
 
 LEADERBOARD_DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "leaderboard")
 if not os.path.exists(LEADERBOARD_DATA_DIR):
@@ -692,7 +351,6 @@ async def get_leaderboard_categories():
     index = _load_leaderboard_json("index.json")
     if not index:
         return {"code": 200, "message": "success", "data": {"general": [], "multimodal": []}}
-
     general = []
     multimodal = []
     for item in index:
@@ -700,35 +358,24 @@ async def get_leaderboard_categories():
             general.append(item)
         else:
             multimodal.append(item)
+    return {"code": 200, "message": "success", "data": {"general": general, "multimodal": multimodal}}
 
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "general": general,
-            "multimodal": multimodal
-        }
-    }
-
-@app.get("/api/leaderboard/{category}")
-async def get_leaderboard(
+@app.get("/api/leaderboard/superclue/{category}")
+async def get_superclue_leaderboard(
     category: str,
     page: Optional[int] = Query(1, ge=1),
-    page_size: Optional[int] = Query(50, ge=1, le=200)
+    page_size: Optional[int] = Query(50, ge=1, le=200),
 ):
     data = _load_leaderboard_json(f"{category}.json")
     if not data:
         raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
-
     rows = data.get("rows", [])
     total = len(rows)
     start = (page - 1) * page_size
     end = start + page_size
     page_rows = rows[start:end]
-
     return {
-        "code": 200,
-        "message": "success",
+        "code": 200, "message": "success",
         "data": {
             "key": data.get("key", category),
             "name": data.get("name", ""),
@@ -738,56 +385,7 @@ async def get_leaderboard(
             "headers": data.get("headers", []),
             "crawl_time": data.get("crawl_time", ""),
             "rows": page_rows,
-            "total": total,
-            "page": page,
-            "page_size": page_size,
+            "total": total, "page": page, "page_size": page_size,
             "total_pages": (total + page_size - 1) // page_size if total > 0 else 0,
-        }
-    }
-
-@app.get("/api/leaderboard/{category}/all")
-async def get_leaderboard_all(category: str):
-    data = _load_leaderboard_json(f"{category}.json")
-    if not data:
-        raise HTTPException(status_code=404, detail=f"Category '{category}' not found")
-    return {"code": 200, "message": "success", "data": data}
-
-# ========== Marketplace: Multi-Provider Price Comparison ==========
-
-@app.get("/api/models/{model_id}/marketplace")
-async def get_model_marketplace(model_id: str):
-    repo = get_repo()
-    model = await repo.get_model(model_id)
-    if not model:
-        raise HTTPException(status_code=404, detail=f"Model '{model_id}' not found")
-    marketplace_data = await repo.get_model_marketplace(model_id)
-    return {
-        "code": 200,
-        "message": "success",
-        "data": {
-            "model_id": model_id,
-            "model_name": model.get("model_name"),
-            "provider": model.get("provider"),
-            "official_pricing": model.get("pricing"),
-            "marketplace": marketplace_data,
-            "marketplace_count": len(marketplace_data),
-        }
-    }
-
-@app.get("/api/marketplace/compare")
-async def marketplace_compare(models: str = Query(..., description="逗号分隔的模型ID列表")):
-    model_ids = [m.strip() for m in models.split(",") if m.strip()]
-    if not model_ids:
-        raise HTTPException(status_code=400, detail="At least one model_id required")
-    if len(model_ids) > 10:
-        raise HTTPException(status_code=400, detail="Maximum 10 models per comparison")
-    result = await get_repo().get_marketplace_compare(model_ids)
-    return {
-        "code": 200,
-        "message": "success",
-        "data": result,
-        "meta": {
-            "model_count": len(model_ids),
-            "models_compared": model_ids
         }
     }
